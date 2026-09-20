@@ -20,17 +20,7 @@
       "done": true
     }
   ],
-  "clients": [
-    {
-      "id": 1789899072718,
-      "firstName": "sd",
-      "lastName": "sd",
-      "site": "sd",
-      "price": 122,
-      "serviceId": null,
-      "history": []
-    }
-  ],
+  "clients": [],
   "services": [],
   "calendar": [],
   "orders": [],

@@ -39,7 +39,7 @@
       {
         "id": 1789899615108,
         "name": "обычный",
-        "amount": 68000,
+        "amount": 68100,
         "currency": "RUB"
       },
       {
@@ -56,7 +56,17 @@
       }
     ],
     "debts": [],
-    "transactions": [],
+    "transactions": [
+      {
+        "id": 1789900462085,
+        "date": "2026-09-20",
+        "type": "income",
+        "amount": 100,
+        "category": "Пополнение",
+        "note": "ss",
+        "accountId": 1789899615108
+      }
+    ],
     "goal": {
       "amount": 30000,
       "month": "2026-09"

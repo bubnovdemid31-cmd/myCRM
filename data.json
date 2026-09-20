@@ -8,19 +8,41 @@
   ],
   "tasks": [
     {
-      "id": 1,
-      "text": "Купить хлеб",
-      "done": false
-    },
-    {
       "id": 2,
       "text": "Позвонить маме",
       "done": true
-    },
-    {
-      "id": 3,
-      "text": "Дописать сайт",
-      "done": false
     }
-  ]
+  ],
+  "clients": [
+    {
+      "id": 1789899072718,
+      "firstName": "sd",
+      "lastName": "sd",
+      "site": "sd",
+      "price": 122,
+      "serviceId": null,
+      "history": []
+    }
+  ],
+  "services": [],
+  "calendar": [],
+  "orders": [],
+  "finance": {
+    "accounts": [],
+    "debts": [],
+    "transactions": [],
+    "goal": {
+      "amount": 0,
+      "month": ""
+    }
+  },
+  "pomodoro": {
+    "todayDate": "2026-09-20",
+    "doneToday": 0
+  },
+  "rates": {
+    "CNY": 12.5,
+    "USD": 90,
+    "EUR": 100
+  }
 }

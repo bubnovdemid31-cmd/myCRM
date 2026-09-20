@@ -47,6 +47,12 @@
         "name": "юани",
         "amount": 400,
         "currency": "CNY"
+      },
+      {
+        "id": 1789899638862,
+        "name": "наличка",
+        "amount": 6000,
+        "currency": "RUB"
       }
     ],
     "debts": [],

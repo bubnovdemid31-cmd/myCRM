@@ -35,7 +35,14 @@
   "calendar": [],
   "orders": [],
   "finance": {
-    "accounts": [],
+    "accounts": [
+      {
+        "id": 1789899615108,
+        "name": "обычный",
+        "amount": 68000,
+        "currency": "RUB"
+      }
+    ],
     "debts": [],
     "transactions": [],
     "goal": {

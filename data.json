@@ -120,6 +120,14 @@
     "USD": 90,
     "EUR": 100
   },
-  "weekTemplate": [],
+  "weekTemplate": [
+    {
+      "id": 1789902445198,
+      "dow": 0,
+      "from": "15:10",
+      "to": "16:40",
+      "title": "Вышмат"
+    }
+  ],
   "skipped": []
 }

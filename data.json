@@ -55,7 +55,14 @@
         "currency": "RUB"
       }
     ],
-    "debts": [],
+    "debts": [
+      {
+        "id": 1789899654455,
+        "who": "плут",
+        "amount": 1000,
+        "due": "2026-09-21"
+      }
+    ],
     "transactions": [],
     "goal": {
       "amount": 30000,

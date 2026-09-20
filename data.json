@@ -13,7 +13,17 @@
       "done": true
     }
   ],
-  "clients": [],
+  "clients": [
+    {
+      "id": 1789902291299,
+      "firstName": "Данил",
+      "lastName": "Зимин",
+      "site": "https://xn----btbkacsntnbifdrgo.xn--p1ai/",
+      "price": 4200,
+      "serviceId": null,
+      "history": []
+    }
+  ],
   "services": [],
   "calendar": [],
   "orders": [],
@@ -72,5 +82,7 @@
     "CNY": 12.5,
     "USD": 90,
     "EUR": 100
-  }
+  },
+  "weekTemplate": [],
+  "skipped": []
 }

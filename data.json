@@ -24,7 +24,14 @@
       "history": []
     }
   ],
-  "services": [],
+  "services": [
+    {
+      "id": 1789902326918,
+      "name": "Landing",
+      "description": "одностраничный сайт-визитка",
+      "minPrice": 4000
+    }
+  ],
   "calendar": [],
   "orders": [],
   "finance": {

@@ -1,0 +1,82 @@
+name: Telegram daily notify
+
+on:
+  schedule:
+    # 09:00 по Москве = 06:00 UTC
+    - cron: '0 6 * * *'
+  workflow_dispatch:
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Send Telegram message
+        env:
+          BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          CHAT_ID:   ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: |
+          python3 - <<'PY'
+          import json, os, urllib.request, urllib.parse
+          from datetime import date, timedelta
+
+          with open('data.json', 'r', encoding='utf-8') as f:
+              db = json.load(f)
+
+          today = date.today().isoformat()
+          plus3 = (date.today() + timedelta(days=3)).isoformat()
+          plus7 = (date.today() + timedelta(days=7)).isoformat()
+
+          lines = [f"☀️ <b>Сводка на {today}</b>", ""]
+
+          lines.append("<b>📅 Расписание</b>")
+          events = sorted(
+              [e for e in db.get('calendar', []) if e.get('date') == today],
+              key=lambda e: e.get('from', '')
+          )
+          if events:
+              for e in events:
+                  lines.append(f"• {e.get('from','')}–{e.get('to','')} {e.get('title','')}")
+          else:
+              lines.append("— пусто")
+          lines.append("")
+
+          lines.append("<b>⏰ Дедлайны</b>")
+          tasks = sorted(
+              [t for t in db.get('tasks', [])
+               if not t.get('done') and t.get('due') and t['due'] <= plus3],
+              key=lambda t: t.get('due', '')
+          )
+          if tasks:
+              for t in tasks:
+                  over = " (просрочено)" if t['due'] < today else ""
+                  lines.append(f"• {t.get('title','')} — до {t['due']}{over}")
+          else:
+              lines.append("— пусто")
+          lines.append("")
+
+          lines.append("<b>💰 Долги</b>")
+          debts = sorted(
+              [d for d in db.get('finance', {}).get('debts', [])
+               if d.get('due') and d['due'] <= plus7],
+              key=lambda d: d.get('due', '')
+          )
+          if debts:
+              for d in debts:
+                  lines.append(f"• {d.get('who','')} — {d.get('amount',0)} ₽ (до {d['due']})")
+          else:
+              lines.append("— пусто")
+
+          text = "\n".join(lines)
+          url = f"https://api.telegram.org/bot{os.environ['BOT_TOKEN']}/sendMessage"
+          data = urllib.parse.urlencode({
+              'chat_id': os.environ['CHAT_ID'],
+              'text': text,
+              'parse_mode': 'HTML'
+          }).encode()
+          req = urllib.request.Request(url, data=data)
+          with urllib.request.urlopen(req) as resp:
+              print(resp.read().decode())
+          PY

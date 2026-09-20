@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Чтение data.json</title>
+  <title>Мои заметки</title>
   <style>
     body {
       font-family: system-ui, sans-serif;
@@ -14,9 +14,36 @@
     }
     h1 { margin-bottom: 0.2rem; }
     .updated { color: #888; font-size: 0.9rem; }
-    ul { padding-left: 1.2rem; }
-    .task-done { text-decoration: line-through; color: #888; }
-    #status { color: #c00; }
+    .note {
+      display: flex;
+      gap: 0.5rem;
+      margin-bottom: 0.5rem;
+    }
+    .note input {
+      flex: 1;
+      padding: 0.4rem;
+      font-size: 1rem;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+    }
+    button {
+      padding: 0.4rem 0.8rem;
+      font-size: 1rem;
+      cursor: pointer;
+      border-radius: 4px;
+      border: 1px solid #ccc;
+      background: #f5f5f5;
+    }
+    button:hover { background: #e8e8e8; }
+    .del { color: #c00; }
+    .toolbar { margin: 1rem 0; display: flex; gap: 0.5rem; flex-wrap: wrap; }
+    .save { background: #2ea44f; color: #fff; border-color: #2ea44f; }
+    .save:hover { background: #268a41; }
+    #status { margin-top: 1rem; color: #555; }
+    #status.ok { color: #2ea44f; }
+    #status.err { color: #c00; }
+    details { margin-top: 2rem; }
+    details input { width: 100%; padding: 0.4rem; font-size: 0.9rem; }
   </style>
 </head>
 <body>
@@ -24,58 +51,158 @@
   <p class="updated" id="updated"></p>
 
   <h2>Заметки</h2>
-  <ul id="notes"></ul>
+  <div id="notes"></div>
 
-  <h2>Задачи</h2>
-  <ul id="tasks"></ul>
+  <div class="toolbar">
+    <button id="add">+ Добавить заметку</button>
+    <button id="save" class="save">💾 Сохранить</button>
+  </div>
 
   <p id="status"></p>
 
+  <details>
+    <summary>Токен GitHub (нужен для сохранения)</summary>
+    <p>
+      <input type="password" id="token" placeholder="ghp_...">
+    </p>
+    <p style="font-size:0.85rem;color:#888">
+      Хранится только в этом браузере (localStorage). Не коммить в репо.
+    </p>
+  </details>
+
   <script>
-    // ⚠️ ЗАМЕНИ НА СВОИ ЗНАЧЕНИЯ
-    const OWNER = 'bubnovdemid31-cmd';
-    const REPO  = 'myCRM';
-    const BRANCH = 'main'; // или 'master'
-    const PATH = 'data.json';
+    const OWNER  = 'bubnovdemid31-cmd';
+    const REPO   = 'myCRM';
+    const BRANCH = 'main';
+    const PATH   = 'data.json';
 
-    const URL = `https://raw.githubusercontent.com/${OWNER}/${REPO}/${BRANCH}/${PATH}`;
+    const RAW_URL = `https://raw.githubusercontent.com/${OWNER}/${REPO}/${BRANCH}/${PATH}`;
+    const API_URL = `https://api.github.com/repos/${OWNER}/${REPO}/contents/${PATH}`;
 
-    async function loadData() {
+    const $notes  = document.getElementById('notes');
+    const $status = document.getElementById('status');
+    const $token  = document.getElementById('token');
+
+    let data = { title: '', updated: '', notes: [], tasks: [] };
+
+    // --- токен ---
+    $token.value = localStorage.getItem('gh_token') || '';
+    $token.addEventListener('input', () =>
+      localStorage.setItem('gh_token', $token.value)
+    );
+
+    // --- отрисовка ---
+    function render() {
+      document.getElementById('title').textContent = data.title || '';
+      document.getElementById('updated').textContent =
+        data.updated ? `Обновлено: ${data.updated}` : '';
+
+      $notes.innerHTML = '';
+      (data.notes || []).forEach((note, i) => {
+        const row = document.createElement('div');
+        row.className = 'note';
+
+        const input = document.createElement('input');
+        input.value = note;
+        input.addEventListener('input', e => {
+          data.notes[i] = e.target.value;
+        });
+
+        const del = document.createElement('button');
+        del.textContent = '✕';
+        del.className = 'del';
+        del.title = 'Удалить';
+        del.addEventListener('click', () => {
+          data.notes.splice(i, 1);
+          render();
+        });
+
+        row.appendChild(input);
+        row.appendChild(del);
+        $notes.appendChild(row);
+      });
+    }
+
+    // --- загрузка ---
+    async function load() {
+      setStatus('Загружаю...');
       try {
-        // ?t=... чтобы браузер не кэшировал старую версию
-        const res = await fetch(`${URL}?t=${Date.now()}`, { cache: 'no-store' });
+        const res = await fetch(`${RAW_URL}?t=${Date.now()}`, { cache: 'no-store' });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const data = await res.json();
-
-        document.getElementById('title').textContent = data.title || '';
-        document.getElementById('updated').textContent =
-          data.updated ? `Обновлено: ${data.updated}` : '';
-
-        const notesEl = document.getElementById('notes');
-        notesEl.innerHTML = '';
-        (data.notes || []).forEach(n => {
-          const li = document.createElement('li');
-          li.textContent = n;
-          notesEl.appendChild(li);
-        });
-
-        const tasksEl = document.getElementById('tasks');
-        tasksEl.innerHTML = '';
-        (data.tasks || []).forEach(t => {
-          const li = document.createElement('li');
-          li.textContent = t.text;
-          if (t.done) li.classList.add('task-done');
-          tasksEl.appendChild(li);
-        });
-
-        document.getElementById('status').textContent = '';
+        data = await res.json();
+        if (!Array.isArray(data.notes)) data.notes = [];
+        if (!Array.isArray(data.tasks)) data.tasks = [];
+        render();
+        setStatus('');
       } catch (e) {
-        document.getElementById('status').textContent =
-          'Ошибка загрузки: ' + e.message;
+        setStatus('Ошибка загрузки: ' + e.message, 'err');
       }
     }
 
-    loadData();
+    // --- добавить ---
+    document.getElementById('add').addEventListener('click', () => {
+      data.notes.push('');
+      render();
+      const inputs = $notes.querySelectorAll('input');
+      inputs[inputs.length - 1]?.focus();
+    });
+
+    // --- сохранить ---
+    document.getElementById('save').addEventListener('click', async () => {
+      const token = $token.value.trim();
+      if (!token) return setStatus('Введи токен GitHub', 'err');
+
+      setStatus('Сохраняю...');
+      try {
+        const getRes = await fetch(`${API_URL}?ref=${BRANCH}&t=${Date.now()}`, {
+          headers: {
+            'Authorization': `token ${token}`,
+            'Accept': 'application/vnd.github.v3+json'
+          },
+          cache: 'no-store'
+        });
+        if (!getRes.ok) throw new Error(`GET: HTTP ${getRes.status}`);
+        const current = await getRes.json();
+
+        data.updated = new Date().toISOString().slice(0, 10);
+
+        const content = btoa(unescape(encodeURIComponent(
+          JSON.stringify(data, null, 2)
+        )));
+
+        const putRes = await fetch(API_URL, {
+          method: 'PUT',
+          headers: {
+            'Authorization': `token ${token}`,
+            'Accept': 'application/vnd.github.v3+json',
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            message: `update data.json (${data.updated})`,
+            content,
+            sha: current.sha,
+            branch: BRANCH
+          })
+        });
+        if (!putRes.ok) {
+          const err = await putRes.json().catch(() => ({}));
+          throw new Error(err.message || `PUT: HTTP ${putRes.status}`);
+        }
+
+        document.getElementById('updated').textContent = `Обновлено: ${data.updated}`;
+        setStatus('Сохранено ✅', 'ok');
+        setTimeout(() => setStatus('', ''), 3000);
+      } catch (e) {
+        setStatus('Ошибка сохранения: ' + e.message, 'err');
+      }
+    });
+
+    function setStatus(text, cls = '') {
+      $status.textContent = text;
+      $status.className = cls;
+    }
+
+    load();
   </script>
 </body>
 </html>

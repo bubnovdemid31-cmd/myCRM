@@ -54,6 +54,12 @@
       "name": "макс-бот",
       "description": "",
       "minPrice": 2500
+    },
+    {
+      "id": 1789902423421,
+      "name": "каталог товаров",
+      "description": "",
+      "minPrice": 15000
     }
   ],
   "calendar": [],

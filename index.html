@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Чтение data.json</title>
+  <style>
+    body {
+      font-family: system-ui, sans-serif;
+      max-width: 640px;
+      margin: 2rem auto;
+      padding: 0 1rem;
+      line-height: 1.5;
+    }
+    h1 { margin-bottom: 0.2rem; }
+    .updated { color: #888; font-size: 0.9rem; }
+    ul { padding-left: 1.2rem; }
+    .task-done { text-decoration: line-through; color: #888; }
+    #status { color: #c00; }
+  </style>
+</head>
+<body>
+  <h1 id="title">Загрузка...</h1>
+  <p class="updated" id="updated"></p>
+
+  <h2>Заметки</h2>
+  <ul id="notes"></ul>
+
+  <h2>Задачи</h2>
+  <ul id="tasks"></ul>
+
+  <p id="status"></p>
+
+  <script>
+    // ⚠️ ЗАМЕНИ НА СВОИ ЗНАЧЕНИЯ
+    const OWNER = 'bubnovdemid31-cmd';
+    const REPO  = 'myCRM';
+    const BRANCH = 'main'; // или 'master'
+    const PATH = 'data.json';
+
+    const URL = `https://raw.githubusercontent.com/${OWNER}/${REPO}/${BRANCH}/${PATH}`;
+
+    async function loadData() {
+      try {
+        // ?t=... чтобы браузер не кэшировал старую версию
+        const res = await fetch(`${URL}?t=${Date.now()}`, { cache: 'no-store' });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+
+        document.getElementById('title').textContent = data.title || '';
+        document.getElementById('updated').textContent =
+          data.updated ? `Обновлено: ${data.updated}` : '';
+
+        const notesEl = document.getElementById('notes');
+        notesEl.innerHTML = '';
+        (data.notes || []).forEach(n => {
+          const li = document.createElement('li');
+          li.textContent = n;
+          notesEl.appendChild(li);
+        });
+
+        const tasksEl = document.getElementById('tasks');
+        tasksEl.innerHTML = '';
+        (data.tasks || []).forEach(t => {
+          const li = document.createElement('li');
+          li.textContent = t.text;
+          if (t.done) li.classList.add('task-done');
+          tasksEl.appendChild(li);
+        });
+
+        document.getElementById('status').textContent = '';
+      } catch (e) {
+        document.getElementById('status').textContent =
+          'Ошибка загрузки: ' + e.message;
+      }
+    }
+
+    loadData();
+  </script>
+</body>
+</html>

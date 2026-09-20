@@ -48,6 +48,12 @@
       "name": "тг бот",
       "description": "",
       "minPrice": 2000
+    },
+    {
+      "id": 1789902401996,
+      "name": "макс-бот",
+      "description": "",
+      "minPrice": 2500
     }
   ],
   "calendar": [],

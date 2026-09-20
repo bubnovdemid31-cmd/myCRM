@@ -41,6 +41,12 @@
         "name": "обычный",
         "amount": 68000,
         "currency": "RUB"
+      },
+      {
+        "id": 1789899624913,
+        "name": "юани",
+        "amount": 400,
+        "currency": "CNY"
       }
     ],
     "debts": [],

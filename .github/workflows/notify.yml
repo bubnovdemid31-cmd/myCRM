@@ -2,8 +2,8 @@ name: Telegram daily notify
 
 on:
   schedule:
-    # 09:00 по Москве = 06:00 UTC
-    - cron: '0 6 * * *'
+    # 08:00 по Владивостоку (UTC+10) = 22:00 UTC предыдущего дня
+    - cron: '0 22 * * *'
   workflow_dispatch:
 
 jobs:
@@ -17,10 +17,16 @@ jobs:
         env:
           BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           CHAT_ID:   ${{ secrets.TELEGRAM_CHAT_ID }}
+          TZ: Asia/Vladivostok
         run: |
           python3 - <<'PY'
           import json, os, urllib.request, urllib.parse
           from datetime import date, timedelta
+          import time
+
+          os.environ['TZ'] = 'Asia/Vladivostok'
+          try: time.tzset()
+          except: pass
 
           with open('data.json', 'r', encoding='utf-8') as f:
               db = json.load(f)

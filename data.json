@@ -39,7 +39,7 @@
       {
         "id": 1789899615108,
         "name": "обычный",
-        "amount": 68100,
+        "amount": 68000,
         "currency": "RUB"
       },
       {
@@ -64,6 +64,15 @@
         "amount": 100,
         "category": "Пополнение",
         "note": "ss",
+        "accountId": 1789899615108
+      },
+      {
+        "id": 1789900472269,
+        "date": "2026-09-20",
+        "type": "expense",
+        "amount": 100,
+        "category": "s",
+        "note": "s",
         "accountId": 1789899615108
       }
     ],

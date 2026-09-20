@@ -63,7 +63,16 @@
     }
   ],
   "calendar": [],
-  "orders": [],
+  "orders": [
+    {
+      "id": 1789902982382,
+      "clientId": 1789902291299,
+      "title": "сайт дял тренера по физ подготовке",
+      "tz": "",
+      "price": 4200,
+      "status": "paid"
+    }
+  ],
   "finance": {
     "accounts": [
       {

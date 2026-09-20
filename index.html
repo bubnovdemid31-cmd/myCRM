@@ -1,208 +1,1866 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Мои заметки</title>
-  <style>
-    body {
-      font-family: system-ui, sans-serif;
-      max-width: 640px;
-      margin: 2rem auto;
-      padding: 0 1rem;
-      line-height: 1.5;
-    }
-    h1 { margin-bottom: 0.2rem; }
-    .updated { color: #888; font-size: 0.9rem; }
-    .note {
-      display: flex;
-      gap: 0.5rem;
-      margin-bottom: 0.5rem;
-    }
-    .note input {
-      flex: 1;
-      padding: 0.4rem;
-      font-size: 1rem;
-      border: 1px solid #ccc;
-      border-radius: 4px;
-    }
-    button {
-      padding: 0.4rem 0.8rem;
-      font-size: 1rem;
-      cursor: pointer;
-      border-radius: 4px;
-      border: 1px solid #ccc;
-      background: #f5f5f5;
-    }
-    button:hover { background: #e8e8e8; }
-    .del { color: #c00; }
-    .toolbar { margin: 1rem 0; display: flex; gap: 0.5rem; flex-wrap: wrap; }
-    .save { background: #2ea44f; color: #fff; border-color: #2ea44f; }
-    .save:hover { background: #268a41; }
-    #status { margin-top: 1rem; color: #555; }
-    #status.ok { color: #2ea44f; }
-    #status.err { color: #c00; }
-    details { margin-top: 2rem; }
-    details input { width: 100%; padding: 0.4rem; font-size: 0.9rem; }
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CRM</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #f4f5f7;
+    --card: #ffffff;
+    --border: #e4e6ea;
+    --text: #1c1e21;
+    --muted: #6b7280;
+    --muted-2: #9aa0a6;
+    --accent: #1c1e21;
+    --ok: #1f7a3e;
+    --ok-bg: #e6f4ea;
+    --err: #a01818;
+    --err-bg: #fdeaea;
+    --warn: #8a5b00;
+    --warn-bg: #fff4e0;
+    --info-bg: #e8eefc;
+    --info: #24418e;
+    --shadow-sm: 0 1px 2px rgba(16,24,40,0.04);
+    --shadow: 0 1px 3px rgba(16,24,40,0.06), 0 1px 2px rgba(16,24,40,0.04);
+    --shadow-lg: 0 8px 24px rgba(16,24,40,0.08);
+  }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: var(--bg); color: var(--text);
+    padding-bottom: 64px; font-size: 14px;
+    -webkit-font-smoothing: antialiased;
+  }
+  header {
+    background: #fff; border-bottom: 1px solid var(--border);
+    padding: 0.75rem 1.4rem; position: sticky; top: 0; z-index: 20;
+    display: flex; justify-content: space-between; align-items: center; gap: 1rem;
+    box-shadow: var(--shadow-sm);
+  }
+  header h1 { font-size: 1rem; font-weight: 700; letter-spacing: 0.02em; }
+  .header-right { display: flex; align-items: center; gap: 0.7rem; }
+  .device-badge {
+    font-size: 0.68rem; color: var(--muted); border: 1px solid var(--border);
+    padding: 0.18rem 0.55rem; border-radius: 4px; text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+  .status-dot {
+    font-size: 0.75rem; color: var(--muted);
+    display: inline-flex; align-items: center; gap: 0.4rem;
+  }
+  .status-dot::before {
+    content: ''; width: 7px; height: 7px; border-radius: 50%;
+    background: var(--muted-2); display: inline-block;
+  }
+  .status-dot.ok::before { background: var(--ok); }
+  .status-dot.err::before { background: var(--err); }
+  .status-dot.loading::before { background: #d97706; }
+  .icon-btn {
+    background: var(--accent); color: #fff; border: none;
+    padding: 0.5rem 1rem; border-radius: 6px; cursor: pointer;
+    font-size: 0.82rem; font-weight: 600;
+    transition: background 0.15s;
+  }
+  .icon-btn:hover { background: #333; }
+  .icon-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  .layout { display: flex; min-height: calc(100vh - 57px); }
+  .sidebar {
+    width: 220px; background: #fff; border-right: 1px solid var(--border);
+    padding: 0.8rem 0; flex-shrink: 0;
+  }
+  .sidebar button {
+    display: block; width: 100%; text-align: left;
+    padding: 0.6rem 1.3rem; background: none; border: none;
+    font-size: 0.9rem; cursor: pointer; color: #4b5563;
+    border-left: 3px solid transparent;
+    transition: background 0.1s;
+    font-family: inherit;
+  }
+  .sidebar button:hover { background: #f7f8fa; color: var(--text); }
+  .sidebar button.active {
+    background: #f0f2f5; color: var(--text); font-weight: 600;
+    border-left-color: var(--accent);
+  }
+
+  .content { flex: 1; padding: 1.6rem; max-width: 100%; overflow-x: hidden; }
+
+  .bottom-nav {
+    display: none; position: fixed; bottom: 0; left: 0; right: 0;
+    background: #fff; border-top: 1px solid var(--border); z-index: 20;
+    box-shadow: 0 -2px 6px rgba(0,0,0,0.03);
+  }
+  .bottom-nav button {
+    flex: 1; padding: 0.55rem 0.2rem; background: none; border: none;
+    font-size: 0.66rem; cursor: pointer; color: var(--muted);
+    text-transform: uppercase; letter-spacing: 0.04em;
+    font-family: inherit;
+  }
+  .bottom-nav button.active { color: var(--text); font-weight: 700; }
+
+  @media (max-width: 768px) {
+    .sidebar { display: none; }
+    .bottom-nav { display: flex; }
+    .content { padding: 1rem; }
+    header { padding: 0.6rem 1rem; }
+    .device-badge { display: none; }
+  }
+
+  h2 {
+    font-size: 1.15rem; font-weight: 700; margin-bottom: 1.2rem;
+    letter-spacing: -0.01em; color: var(--text);
+  }
+  h3 {
+    font-size: 0.72rem; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.1em; color: var(--muted); margin: 1.6rem 0 0.8rem;
+  }
+
+  .page-head {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 1.2rem; gap: 1rem;
+  }
+  .page-head h2, .page-head h3 { margin-bottom: 0; }
+
+  .card {
+    background: var(--card); border: 1px solid var(--border); border-radius: 8px;
+    padding: 1rem 1.15rem; margin-bottom: 0.7rem;
+    box-shadow: var(--shadow-sm);
+    transition: box-shadow 0.15s;
+  }
+  .card:hover { box-shadow: var(--shadow); }
+  .card-row { display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem; }
+  .card .meta { color: var(--muted); font-size: 0.8rem; margin-top: 0.25rem; }
+  .card .price { font-weight: 700; color: var(--text); white-space: nowrap; font-size: 0.95rem; }
+
+  .overdue { border-left: 3px solid var(--err); }
+  .done { opacity: 0.45; }
+  .done strong { text-decoration: line-through; }
+
+  .stat-grid {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 0.7rem; margin-bottom: 1.6rem;
+  }
+  .stat-box {
+    background: var(--card); border: 1px solid var(--border); border-radius: 8px;
+    padding: 0.95rem 1.05rem; box-shadow: var(--shadow-sm);
+    position: relative; overflow: hidden;
+  }
+  .stat-box .value { font-size: 1.25rem; font-weight: 700; color: var(--text); letter-spacing: -0.01em; }
+  .stat-box .label {
+    font-size: 0.68rem; color: var(--muted); text-transform: uppercase;
+    letter-spacing: 0.08em; margin-top: 0.25rem; font-weight: 600;
+  }
+  .stat-box.accent { background: var(--accent); border-color: var(--accent); }
+  .stat-box.accent .value { color: #fff; }
+  .stat-box.accent .label { color: rgba(255,255,255,0.65); }
+
+  button.action {
+    background: var(--accent); color: #fff; border: none;
+    padding: 0.5rem 1.05rem; border-radius: 6px; cursor: pointer;
+    font-size: 0.85rem; font-weight: 600;
+    transition: background 0.15s; font-family: inherit;
+  }
+  button.action:hover { background: #333; }
+  button.ghost {
+    background: #fff; border: 1px solid var(--border); color: var(--text);
+    padding: 0.42rem 0.8rem; border-radius: 6px; cursor: pointer; font-size: 0.8rem;
+    font-family: inherit; transition: background 0.1s;
+  }
+  button.ghost:hover { background: #f5f6f8; }
+  button.danger { color: var(--err); border-color: #f0c8c8; background: #fff; }
+  button.danger:hover { background: var(--err-bg); }
+  button.mini {
+    padding: 0.3rem 0.6rem; font-size: 0.75rem; border-radius: 5px;
+  }
+
+  .empty {
+    color: var(--muted-2); padding: 1.4rem 1rem; text-align: center; font-size: 0.85rem;
+    background: #fff; border: 1px dashed var(--border); border-radius: 8px;
+  }
+
+  .cal-header {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 1rem; gap: 0.6rem;
+  }
+  .cal-title { font-size: 1.05rem; font-weight: 700; }
+  .cal-nav { display: flex; gap: 0.35rem; }
+  .cal-nav button {
+    background: #fff; border: 1px solid var(--border); border-radius: 6px;
+    width: 32px; height: 32px; cursor: pointer; font-size: 0.95rem; color: #4b5563;
+    font-family: inherit;
+  }
+  .cal-nav button:hover { background: #f5f6f8; }
+  .cal-grid {
+    display: grid; grid-template-columns: repeat(7, 1fr);
+    gap: 1px; background: var(--border);
+    border: 1px solid var(--border); border-radius: 8px; overflow: hidden;
+    box-shadow: var(--shadow-sm);
+  }
+  .cal-dow {
+    background: #f7f8fa; text-align: center; padding: 0.5rem 0;
+    font-size: 0.68rem; color: var(--muted); text-transform: uppercase;
+    letter-spacing: 0.08em; font-weight: 700;
+  }
+  .cal-cell {
+    background: #fff; min-height: 84px; padding: 0.4rem;
+    cursor: pointer; font-size: 0.78rem; position: relative;
+    display: flex; flex-direction: column;
+    transition: background 0.1s;
+  }
+  .cal-cell:hover { background: #fafbfc; }
+  .cal-cell.other { background: #f9fafb; color: #c0c4ca; }
+  .cal-cell.today .day-num {
+    background: var(--accent); color: #fff; border-radius: 50%;
+    width: 22px; height: 22px; display: inline-flex;
+    align-items: center; justify-content: center;
+  }
+  .cal-cell.selected { background: #eef2ff; box-shadow: inset 0 0 0 2px var(--accent); }
+  .cal-cell .day-num { font-weight: 700; font-size: 0.78rem; }
+  .cal-cell .ev {
+    font-size: 0.66rem; background: #eef0f3; color: var(--text);
+    padding: 1px 5px; border-radius: 3px; margin-top: 3px;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    font-weight: 500;
+  }
+  .cal-cell .ev.tpl {
+    background: var(--info-bg); color: var(--info);
+  }
+  @media (max-width: 500px) {
+    .cal-cell { min-height: 64px; padding: 0.25rem; }
+    .cal-cell .ev { font-size: 0.56rem; }
+  }
+  .cal-day-panel {
+    margin-top: 1.2rem; background: #fff; border: 1px solid var(--border);
+    border-radius: 8px; padding: 1.15rem; box-shadow: var(--shadow-sm);
+  }
+  .cal-day-panel h3 { margin-top: 0; }
+  .cal-day-panel .form-row { margin-bottom: 0.9rem; }
+
+  .mini-list { display: flex; flex-direction: column; gap: 0.4rem; }
+  .mini-item {
+    background: #fff; border: 1px solid var(--border); border-radius: 6px;
+    padding: 0.6rem 0.9rem; font-size: 0.85rem;
+    display: flex; justify-content: space-between; align-items: center; gap: 0.6rem;
+    box-shadow: var(--shadow-sm);
+  }
+  .mini-item .t { color: var(--muted); font-size: 0.75rem; white-space: nowrap; }
+  .mini-item.overdue { border-left: 3px solid var(--err); }
+  .mini-item.tpl { border-left: 3px solid var(--info); background: #f8faff; }
+
+  .form-row { display: flex; gap: 0.55rem; flex-wrap: wrap; }
+  .form-row input, .form-row select, .form-row textarea {
+    padding: 0.55rem 0.7rem; border: 1px solid var(--border); border-radius: 6px;
+    font-size: 0.88rem; font-family: inherit; background: #fff; color: var(--text);
+    transition: border-color 0.15s, box-shadow 0.15s;
+  }
+  .form-row input:focus, .form-row select:focus, .form-row textarea:focus {
+    outline: none; border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(28,30,33,0.08);
+  }
+  .form-row input, .form-row select { flex: 1; min-width: 120px; }
+  .form-row textarea { flex: 1 1 100%; min-height: 60px; resize: vertical; }
+
+  .modal-overlay {
+    position: fixed; inset: 0; background: rgba(15,20,30,0.4);
+    z-index: 100; display: flex; align-items: center; justify-content: center;
+    padding: 1rem;
+    animation: fadeIn 0.15s;
+  }
+  @keyframes fadeIn { from { opacity: 0 } to { opacity: 1 } }
+  .modal {
+    background: #fff; border-radius: 10px; width: 100%; max-width: 480px;
+    max-height: 90vh; overflow-y: auto;
+    box-shadow: var(--shadow-lg);
+    animation: slideUp 0.2s;
+  }
+  @keyframes slideUp { from { transform: translateY(8px); opacity: 0 } to { transform: none; opacity: 1 } }
+  .modal-head {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 1.1rem 1.3rem; border-bottom: 1px solid var(--border);
+  }
+  .modal-head h3 {
+    margin: 0; font-size: 0.95rem; font-weight: 700;
+    text-transform: none; letter-spacing: 0; color: var(--text);
+  }
+  .modal-close {
+    background: none; border: none; font-size: 1.35rem;
+    cursor: pointer; color: var(--muted); line-height: 1; padding: 0.2rem 0.5rem;
+    font-family: inherit;
+  }
+  .modal-close:hover { color: var(--text); }
+  .modal-body { padding: 1.3rem; }
+  .modal-body .form-row { flex-direction: column; gap: 0.7rem; }
+  .modal-body .form-row input,
+  .modal-body .form-row select,
+  .modal-body .form-row textarea { width: 100%; }
+  .modal-foot {
+    display: flex; justify-content: flex-end; gap: 0.5rem;
+    padding: 1rem 1.3rem; border-top: 1px solid var(--border);
+  }
+  .field-label {
+    font-size: 0.72rem; color: var(--muted); text-transform: uppercase;
+    letter-spacing: 0.07em; margin-bottom: 0.3rem; display: block; font-weight: 600;
+  }
+
+  .status {
+    display: inline-block; font-size: 0.68rem; padding: 0.2rem 0.55rem;
+    border-radius: 4px; text-transform: uppercase; letter-spacing: 0.05em;
+    font-weight: 700; white-space: nowrap;
+  }
+  .status-new { background: #eef0f3; color: #4b5563; }
+  .status-in_progress { background: var(--info-bg); color: var(--info); }
+  .status-review { background: var(--warn-bg); color: var(--warn); }
+  .status-done { background: var(--ok-bg); color: var(--ok); }
+  .status-paid { background: var(--accent); color: #fff; }
+
+  .progress {
+    background: #eef0f3; border-radius: 999px; height: 8px;
+    overflow: hidden; margin-top: 0.6rem;
+  }
+  .progress > div {
+    height: 100%; background: var(--accent);
+    transition: width 0.4s ease;
+  }
+
+  .fin-hero {
+    background: linear-gradient(135deg, #1c1e21 0%, #2d3138 100%);
+    color: #fff; border-radius: 10px; padding: 1.4rem 1.5rem;
+    margin-bottom: 1.4rem;
+    box-shadow: 0 4px 14px rgba(28,30,33,0.15);
+  }
+  .fin-hero .label {
+    font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.1em;
+    opacity: 0.65; font-weight: 600;
+  }
+  .fin-hero .amount {
+    font-size: 2rem; font-weight: 700; letter-spacing: -0.02em;
+    margin-top: 0.35rem;
+  }
+  .fin-hero .sub {
+    font-size: 0.82rem; opacity: 0.7; margin-top: 0.4rem;
+  }
+
+  .acc-grid {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 0.7rem; margin-bottom: 0.5rem;
+  }
+  .acc-card {
+    background: #fff; border: 1px solid var(--border); border-radius: 8px;
+    padding: 0.95rem 1.05rem; box-shadow: var(--shadow-sm);
+    position: relative; overflow: hidden;
+    transition: box-shadow 0.15s, transform 0.15s;
+  }
+  .acc-card:hover { box-shadow: var(--shadow); }
+  .acc-card .acc-name {
+    font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.08em;
+    color: var(--muted); font-weight: 700;
+  }
+  .acc-card .acc-amount {
+    font-size: 1.3rem; font-weight: 700; margin-top: 0.3rem;
+    letter-spacing: -0.01em;
+  }
+  .acc-card .acc-cur {
+    font-size: 0.72rem; color: var(--muted); margin-top: 0.15rem;
+  }
+  .acc-card .acc-actions {
+    display: flex; gap: 0.4rem; margin-top: 0.85rem;
+    padding-top: 0.75rem; border-top: 1px solid var(--border);
+  }
+  .acc-card .acc-actions button {
+    flex: 1; padding: 0.35rem 0.4rem; font-size: 0.75rem;
+    border-radius: 5px; cursor: pointer; font-family: inherit;
+    background: #fff; border: 1px solid var(--border); color: var(--text);
+    font-weight: 600;
+  }
+  .acc-card .acc-actions button:hover { background: #f5f6f8; }
+  .acc-card .acc-actions button.plus { color: var(--ok); border-color: #bfe0c8; }
+  .acc-card .acc-actions button.minus { color: var(--err); border-color: #f0c8c8; }
+  .acc-card .acc-actions button.plus:hover { background: var(--ok-bg); }
+  .acc-card .acc-actions button.minus:hover { background: var(--err-bg); }
+  .acc-card .acc-del {
+    position: absolute; top: 0.6rem; right: 0.6rem;
+    background: none; border: none; color: var(--muted-2);
+    cursor: pointer; font-size: 1rem; line-height: 1; padding: 0.1rem 0.3rem;
+    font-family: inherit;
+  }
+  .acc-card .acc-del:hover { color: var(--err); }
+
+  .move-row {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 0.7rem 1rem; border-bottom: 1px solid #f0f1f3; font-size: 0.85rem;
+    gap: 0.8rem;
+  }
+  .move-row:last-child { border-bottom: none; }
+  .move-row .desc { flex: 1; min-width: 0; }
+  .move-row .desc .note {
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .move-row .desc .cat {
+    font-size: 0.72rem; color: var(--muted); margin-top: 0.1rem;
+  }
+  .move-row .amt {
+    font-weight: 700; white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+  }
+  .move-row .amt.plus { color: var(--ok); }
+  .move-row .amt.minus { color: var(--err); }
+  .move-row .date {
+    font-size: 0.72rem; color: var(--muted); white-space: nowrap;
+    min-width: 70px; text-align: right;
+  }
+
+  .month-block {
+    background: #fff; border: 1px solid var(--border); border-radius: 8px;
+    margin-bottom: 0.7rem; overflow: hidden; box-shadow: var(--shadow-sm);
+  }
+  .month-head {
+    padding: 0.85rem 1rem; background: #f7f8fa;
+    display: flex; justify-content: space-between; align-items: center;
+    border-bottom: 1px solid var(--border);
+    font-size: 0.85rem; font-weight: 700;
+  }
+  .month-head .nums {
+    font-size: 0.75rem; font-weight: 600; color: var(--muted);
+  }
+  .month-head .nums .plus { color: var(--ok); }
+  .month-head .nums .minus { color: var(--err); }
+
+  .pomo-box {
+    background: #fff; border: 1px solid var(--border); border-radius: 12px;
+    padding: 2.4rem 1.2rem; text-align: center; margin-bottom: 1rem;
+    box-shadow: var(--shadow-sm);
+  }
+  .pomo-time {
+    font-size: 4rem; font-weight: 700; font-variant-numeric: tabular-nums;
+    letter-spacing: -0.02em; color: var(--text); line-height: 1;
+  }
+  .pomo-mode {
+    font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.12em;
+    color: var(--muted); margin-top: 0.8rem; font-weight: 700;
+  }
+  .pomo-actions { display: flex; gap: 0.5rem; justify-content: center; margin-top: 1.6rem; flex-wrap: wrap; }
+  .pomo-actions button {
+    padding: 0.65rem 1.3rem; border-radius: 6px; cursor: pointer;
+    font-size: 0.88rem; border: 1px solid var(--border); background: #fff; color: var(--text);
+    font-family: inherit; font-weight: 600;
+  }
+  .pomo-actions button.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .pomo-actions button:hover { background: #f5f6f8; }
+  .pomo-actions button.primary:hover { background: #333; }
+  .pomo-stat { display: flex; justify-content: center; gap: 2.5rem; margin-top: 1.4rem; }
+  .pomo-stat > div { text-align: center; }
+  .pomo-stat .v { font-size: 1.4rem; font-weight: 700; }
+  .pomo-stat .l { font-size: 0.68rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.07em; font-weight: 600; }
+
+  .notes-layout {
+    display: grid; grid-template-columns: 300px 1fr; gap: 0;
+    background: #fff; border: 1px solid var(--border); border-radius: 10px;
+    overflow: hidden; min-height: calc(100vh - 160px);
+    box-shadow: var(--shadow-sm);
+  }
+  .notes-list {
+    border-right: 1px solid var(--border); overflow-y: auto;
+    display: flex; flex-direction: column; background: #fafbfc;
+  }
+  .notes-list-head {
+    padding: 0.8rem 1rem; border-bottom: 1px solid var(--border);
+    display: flex; justify-content: space-between; align-items: center;
+    background: #fff;
+  }
+  .notes-list-head strong { font-size: 0.85rem; font-weight: 700; }
+  .notes-list-items { flex: 1; overflow-y: auto; }
+  .note-item {
+    padding: 0.8rem 1rem; border-bottom: 1px solid #eef0f3;
+    cursor: pointer;
+  }
+  .note-item:hover { background: #f5f6f8; }
+  .note-item.active { background: #eef2ff; border-left: 3px solid var(--accent); padding-left: calc(1rem - 3px); }
+  .note-item .nt {
+    font-weight: 700; font-size: 0.88rem;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .note-item .np {
+    font-size: 0.78rem; color: var(--muted); margin-top: 0.2rem;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .note-item .nd {
+    font-size: 0.7rem; color: var(--muted-2); margin-top: 0.25rem;
+  }
+  .note-editor { display: flex; flex-direction: column; padding: 1.4rem; }
+  .note-editor input.note-title {
+    border: none; outline: none; font-size: 1.35rem; font-weight: 700;
+    padding: 0.2rem 0; margin-bottom: 0.7rem; color: var(--text);
+    font-family: inherit; letter-spacing: -0.01em;
+  }
+  .note-editor textarea.note-body {
+    border: none; outline: none; flex: 1; resize: none;
+    font-size: 0.95rem; line-height: 1.65; color: var(--text);
+    font-family: inherit; min-height: 400px;
+  }
+  .note-editor .note-foot {
+    border-top: 1px solid var(--border); padding-top: 0.8rem; margin-top: 0.8rem;
+    display: flex; justify-content: space-between; align-items: center;
+    font-size: 0.75rem; color: var(--muted);
+  }
+  .note-editor .placeholder {
+    flex: 1; display: flex; align-items: center; justify-content: center;
+    color: var(--muted-2); font-size: 0.9rem;
+  }
+  @media (max-width: 768px) {
+    .notes-layout { grid-template-columns: 1fr; min-height: auto; }
+    .notes-list { border-right: none; border-bottom: 1px solid var(--border); max-height: 40vh; }
+    .note-editor { min-height: 60vh; }
+    .note-editor textarea.note-body { min-height: 300px; }
+  }
+
+  /* ШАБЛОН НЕДЕЛИ */
+  .tpl-day {
+    background: #fff; border: 1px solid var(--border); border-radius: 8px;
+    margin-bottom: 0.7rem; box-shadow: var(--shadow-sm); overflow: hidden;
+  }
+  .tpl-day-head {
+    padding: 0.7rem 1rem; background: #f7f8fa;
+    display: flex; justify-content: space-between; align-items: center;
+    border-bottom: 1px solid var(--border);
+    font-size: 0.85rem; font-weight: 700;
+  }
+  .tpl-day-head .count {
+    font-size: 0.72rem; color: var(--muted); font-weight: 600;
+    text-transform: uppercase; letter-spacing: 0.05em;
+  }
+  .tpl-day-body { padding: 0.7rem 1rem; }
+  .tpl-row {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 0.55rem 0; border-bottom: 1px solid #f0f1f3; gap: 0.6rem;
+    font-size: 0.85rem;
+  }
+  .tpl-row:last-child { border-bottom: none; }
+  .tpl-row .time {
+    font-weight: 700; font-size: 0.8rem; white-space: nowrap;
+    color: var(--info); min-width: 95px;
+  }
+  .tpl-row .title { flex: 1; min-width: 0; }
+  .tpl-add {
+    padding: 0.4rem 0.8rem; border: 1px dashed var(--border); border-radius: 6px;
+    background: #fafbfc; color: var(--muted); cursor: pointer; font-size: 0.78rem;
+    font-family: inherit; width: 100%; text-align: left; margin-top: 0.4rem;
+  }
+  .tpl-add:hover { background: #f0f2f5; color: var(--text); border-style: solid; }
+
+  details.token-block {
+    background: #fff; border: 1px solid var(--border); border-radius: 8px;
+    padding: 0.7rem 1rem; margin-top: 1.6rem; box-shadow: var(--shadow-sm);
+  }
+  details.token-block summary { cursor: pointer; font-size: 0.85rem; color: #4b5563; font-weight: 600; }
+  details.token-block input {
+    width: 100%; padding: 0.55rem; border: 1px solid var(--border);
+    border-radius: 6px; margin-top: 0.6rem; font-size: 0.85rem;
+    font-family: inherit;
+  }
+  details.token-block .hint {
+    font-size: 0.75rem; color: var(--muted); margin-top: 0.5rem;
+  }
+</style>
 </head>
 <body>
-  <h1 id="title">Загрузка...</h1>
-  <p class="updated" id="updated"></p>
 
-  <h2>Заметки</h2>
-  <div id="notes"></div>
-
-  <div class="toolbar">
-    <button id="add">+ Добавить заметку</button>
-    <button id="save" class="save">💾 Сохранить</button>
+<header>
+  <h1>CRM</h1>
+  <div class="header-right">
+    <span class="status-dot" id="statusDot">Готово</span>
+    <button class="icon-btn" id="saveBtn" onclick="saveToGitHub(true)">Сохранить</button>
+    <span class="device-badge" id="deviceBadge">…</span>
   </div>
+</header>
 
-  <p id="status"></p>
+<div class="layout">
+  <nav class="sidebar" id="sidebar"></nav>
+  <main class="content" id="content"></main>
+</div>
 
-  <details>
-    <summary>Токен GitHub (нужен для сохранения)</summary>
-    <p>
-      <input type="password" id="token" placeholder="ghp_...">
-    </p>
-    <p style="font-size:0.85rem;color:#888">
-      Хранится только в этом браузере (localStorage). Не коммить в репо.
-    </p>
-  </details>
+<nav class="bottom-nav" id="bottomNav"></nav>
 
-  <script>
-    const OWNER  = 'bubnovdemid31-cmd';
-    const REPO   = 'myCRM';
-    const BRANCH = 'main';
-    const PATH   = 'data.json';
+<div id="modalRoot"></div>
 
-    const RAW_URL = `https://raw.githubusercontent.com/${OWNER}/${REPO}/${BRANCH}/${PATH}`;
-    const API_URL = `https://api.github.com/repos/${OWNER}/${REPO}/contents/${PATH}`;
+<script>
+const OWNER  = 'bubnovdemid31-cmd';
+const REPO   = 'myCRM';
+const BRANCH = 'main';
+const PATH   = 'data.json';
 
-    const $notes  = document.getElementById('notes');
-    const $status = document.getElementById('status');
-    const $token  = document.getElementById('token');
+const RAW_URL = `https://raw.githubusercontent.com/${OWNER}/${REPO}/${BRANCH}/${PATH}`;
+const API_URL = `https://api.github.com/repos/${OWNER}/${REPO}/contents/${PATH}`;
 
-    let data = { title: '', updated: '', notes: [], tasks: [] };
+const isMobile = /Android|iPhone|iPad|iPod|Telegram/i.test(navigator.userAgent)
+                 || window.innerWidth < 768;
+document.getElementById('deviceBadge').textContent = isMobile ? 'Телефон' : 'ПК';
 
-    // --- токен ---
-    $token.value = localStorage.getItem('gh_token') || '';
-    $token.addEventListener('input', () =>
-      localStorage.setItem('gh_token', $token.value)
-    );
+const ORDER_STATUSES = [
+  { id: 'new', label: 'Новый' },
+  { id: 'in_progress', label: 'В работе' },
+  { id: 'review', label: 'На проверке' },
+  { id: 'done', label: 'Сдан' },
+  { id: 'paid', label: 'Оплачен' }
+];
 
-    // --- отрисовка ---
-    function render() {
-      document.getElementById('title').textContent = data.title || '';
-      document.getElementById('updated').textContent =
-        data.updated ? `Обновлено: ${data.updated}` : '';
+function defaultDB() {
+  return {
+    title: 'CRM', updated: '',
+    clients: [], services: [], calendar: [], tasks: [],
+    weekTemplate: [],   // события шаблона недели
+    skipped: [],        // { tplId, date } — удалённые на конкретный день
+    finance: {
+      accounts: [], debts: [], transactions: [],
+      goal: { amount: 0, month: '' }
+    },
+    orders: [], notes: [],
+    pomodoro: { todayDate: '', doneToday: 0 },
+    rates: { CNY: 12.5, USD: 90, EUR: 100 }
+  };
+}
 
-      $notes.innerHTML = '';
-      (data.notes || []).forEach((note, i) => {
-        const row = document.createElement('div');
-        row.className = 'note';
+let db = defaultDB();
+let dirty = false;
+function uid() { return Date.now() + Math.floor(Math.random() * 1000); }
 
-        const input = document.createElement('input');
-        input.value = note;
-        input.addEventListener('input', e => {
-          data.notes[i] = e.target.value;
-        });
+function setStatus(text, cls = '') {
+  const el = document.getElementById('statusDot');
+  el.textContent = text;
+  el.className = 'status-dot ' + cls;
+}
 
-        const del = document.createElement('button');
-        del.textContent = '✕';
-        del.className = 'del';
-        del.title = 'Удалить';
-        del.addEventListener('click', () => {
-          data.notes.splice(i, 1);
-          render();
-        });
+let autoSaveTimer = null;
+let saveInFlight = false;
 
-        row.appendChild(input);
-        row.appendChild(del);
-        $notes.appendChild(row);
-      });
-    }
+function markDirty() {
+  dirty = true;
+  setStatus('Изменено…', '');
+  if (autoSaveTimer) clearTimeout(autoSaveTimer);
+  autoSaveTimer = setTimeout(() => saveToGitHub(false), 1500);
+}
 
-    // --- загрузка ---
-    async function load() {
-      setStatus('Загружаю...');
-      try {
-        const res = await fetch(`${RAW_URL}?t=${Date.now()}`, { cache: 'no-store' });
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        data = await res.json();
-        if (!Array.isArray(data.notes)) data.notes = [];
-        if (!Array.isArray(data.tasks)) data.tasks = [];
-        render();
-        setStatus('');
-      } catch (e) {
-        setStatus('Ошибка загрузки: ' + e.message, 'err');
-      }
-    }
-
-    // --- добавить ---
-    document.getElementById('add').addEventListener('click', () => {
-      data.notes.push('');
-      render();
-      const inputs = $notes.querySelectorAll('input');
-      inputs[inputs.length - 1]?.focus();
+async function saveToGitHub(manual = false) {
+  if (saveInFlight) return;
+  if (!dirty) {
+    if (manual) setStatus('Нечего сохранять', '');
+    return;
+  }
+  const token = localStorage.getItem('gh_token');
+  if (!token) {
+    setStatus('Нужен токен', 'err');
+    if (manual) alert('Введи GitHub-токен внизу главной страницы');
+    return;
+  }
+  saveInFlight = true;
+  const btn = document.getElementById('saveBtn');
+  if (manual) btn.disabled = true;
+  setStatus('Сохранение…', 'loading');
+  try {
+    const getRes = await fetch(`${API_URL}?ref=${BRANCH}&t=${Date.now()}`, {
+      headers: {
+        'Authorization': `token ${token}`,
+        'Accept': 'application/vnd.github.v3+json'
+      },
+      cache: 'no-store'
     });
-
-    // --- сохранить ---
-    document.getElementById('save').addEventListener('click', async () => {
-      const token = $token.value.trim();
-      if (!token) return setStatus('Введи токен GitHub', 'err');
-
-      setStatus('Сохраняю...');
-      try {
-        const getRes = await fetch(`${API_URL}?ref=${BRANCH}&t=${Date.now()}`, {
-          headers: {
-            'Authorization': `token ${token}`,
-            'Accept': 'application/vnd.github.v3+json'
-          },
-          cache: 'no-store'
-        });
-        if (!getRes.ok) throw new Error(`GET: HTTP ${getRes.status}`);
-        const current = await getRes.json();
-
-        data.updated = new Date().toISOString().slice(0, 10);
-
-        const content = btoa(unescape(encodeURIComponent(
-          JSON.stringify(data, null, 2)
-        )));
-
-        const putRes = await fetch(API_URL, {
-          method: 'PUT',
-          headers: {
-            'Authorization': `token ${token}`,
-            'Accept': 'application/vnd.github.v3+json',
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            message: `update data.json (${data.updated})`,
-            content,
-            sha: current.sha,
-            branch: BRANCH
-          })
-        });
-        if (!putRes.ok) {
-          const err = await putRes.json().catch(() => ({}));
-          throw new Error(err.message || `PUT: HTTP ${putRes.status}`);
-        }
-
-        document.getElementById('updated').textContent = `Обновлено: ${data.updated}`;
-        setStatus('Сохранено ✅', 'ok');
-        setTimeout(() => setStatus('', ''), 3000);
-      } catch (e) {
-        setStatus('Ошибка сохранения: ' + e.message, 'err');
-      }
-    });
-
-    function setStatus(text, cls = '') {
-      $status.textContent = text;
-      $status.className = cls;
+    if (!getRes.ok) {
+      if (getRes.status === 401) throw new Error('токен неверный или истёк');
+      if (getRes.status === 403) throw new Error('нет прав (нужен scope repo)');
+      throw new Error(`GET ${getRes.status}`);
     }
+    const current = await getRes.json();
+    db.updated = new Date().toISOString().slice(0, 10);
+    const content = btoa(unescape(encodeURIComponent(JSON.stringify(db, null, 2))));
+    const putRes = await fetch(API_URL, {
+      method: 'PUT',
+      headers: {
+        'Authorization': `token ${token}`,
+        'Accept': 'application/vnd.github.v3+json',
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        message: `update data.json (${db.updated})`,
+        content,
+        sha: current.sha,
+        branch: BRANCH
+      })
+    });
+    if (!putRes.ok) {
+      const err = await putRes.json().catch(() => ({}));
+      throw new Error(err.message || `PUT ${putRes.status}`);
+    }
+    dirty = false;
+    setStatus('Сохранено', 'ok');
+    setTimeout(() => setStatus('Готово', ''), 1500);
+  } catch (e) {
+    setStatus('Ошибка сохранения', 'err');
+    if (manual) alert('Не удалось сохранить: ' + e.message);
+  } finally {
+    saveInFlight = false;
+    if (manual) btn.disabled = false;
+  }
+}
 
-    load();
-  </script>
+async function loadFromGitHub() {
+  setStatus('Загрузка…', 'loading');
+  try {
+    const res = await fetch(`${RAW_URL}?t=${Date.now()}`, { cache: 'no-store' });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const json = await res.json();
+    const def = defaultDB();
+    json.clients = (json.clients || []).map(c => ({ ...c, history: c.history || [] }));
+    json.services = json.services || [];
+    json.calendar = json.calendar || [];
+    json.tasks = json.tasks || [];
+    json.weekTemplate = json.weekTemplate || [];
+    json.skipped = json.skipped || [];
+    json.orders = (json.orders || []).map(o => ({ ...o, status: o.status || 'new' }));
+    json.finance = Object.assign({}, def.finance, json.finance || {});
+    json.finance.accounts = json.finance.accounts || [];
+    json.finance.debts = json.finance.debts || [];
+    json.finance.transactions = json.finance.transactions || [];
+    json.finance.goal = json.finance.goal || { amount: 0, month: '' };
+    json.notes = json.notes || [];
+    json.pomodoro = json.pomodoro || { todayDate: '', doneToday: 0 };
+    json.rates = json.rates || def.rates;
+    db = json;
+    dirty = false;
+    setStatus('Загружено', 'ok');
+    render();
+    setTimeout(() => setStatus('Готово', ''), 1500);
+  } catch (e) {
+    setStatus('Ошибка загрузки', 'err');
+    alert('Не удалось загрузить data.json: ' + e.message);
+  }
+}
+
+const ALL_TABS = [
+  { id: 'home',     label: 'Главная',   mobile: true },
+  { id: 'notes',    label: 'Заметки',   mobile: true },
+  { id: 'clients',  label: 'Клиенты',   mobile: false },
+  { id: 'services', label: 'Услуги',    mobile: false },
+  { id: 'calendar', label: 'Календарь', mobile: true },
+  { id: 'tasks',    label: 'Дела',      mobile: true },
+  { id: 'finance',  label: 'Финансы',   mobile: true },
+  { id: 'orders',   label: 'Заказы',    mobile: false },
+  { id: 'pomodoro', label: 'Таймер',    mobile: true }
+];
+const tabs = ALL_TABS.filter(t => isMobile ? t.mobile : true);
+let currentTab = 'home';
+
+function renderNav() {
+  const sidebar = document.getElementById('sidebar');
+  const bottom = document.getElementById('bottomNav');
+  sidebar.innerHTML = '';
+  bottom.innerHTML = '';
+  tabs.forEach(t => {
+    const b = document.createElement('button');
+    b.textContent = t.label;
+    b.className = currentTab === t.id ? 'active' : '';
+    b.onclick = () => switchTab(t.id);
+    sidebar.appendChild(b);
+  });
+  tabs.slice(0, 4).forEach(t => {
+    const b = document.createElement('button');
+    b.textContent = t.label;
+    b.className = currentTab === t.id ? 'active' : '';
+    b.onclick = () => switchTab(t.id);
+    bottom.appendChild(b);
+  });
+}
+function switchTab(id) { currentTab = id; closeModal(); renderNav(); render(); }
+
+function openModal(title, bodyHTML, onSave) {
+  closeModal();
+  const root = document.getElementById('modalRoot');
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+  overlay.onclick = e => { if (e.target === overlay) closeModal(); };
+  overlay.innerHTML = `
+    <div class="modal" onclick="event.stopPropagation()">
+      <div class="modal-head">
+        <h3>${title}</h3>
+        <button class="modal-close" onclick="closeModal()">×</button>
+      </div>
+      <div class="modal-body">${bodyHTML}</div>
+      <div class="modal-foot">
+        <button class="ghost" onclick="closeModal()">Отмена</button>
+        <button class="action" id="modalSaveBtn">Сохранить</button>
+      </div>
+    </div>
+  `;
+  root.appendChild(overlay);
+  document.getElementById('modalSaveBtn').onclick = () => {
+    if (onSave() !== false) closeModal();
+  };
+  overlay.addEventListener('keydown', e => {
+    if (e.key === 'Enter' && e.target.tagName !== 'TEXTAREA') {
+      if (onSave() !== false) closeModal();
+    }
+  });
+  setTimeout(() => {
+    const first = overlay.querySelector('input, select, textarea');
+    if (first) first.focus();
+  }, 50);
+}
+function closeModal() { document.getElementById('modalRoot').innerHTML = ''; }
+
+function fmtMoney(n, cur = 'RUB') {
+  const s = { RUB: '₽', USD: '$', EUR: '€', CNY: '¥' };
+  return (n || 0).toLocaleString('ru-RU') + ' ' + (s[cur] || cur);
+}
+function todayStr() { return new Date().toISOString().slice(0, 10); }
+function monthStr() { return todayStr().slice(0, 7); }
+function isOverdue(d) { return d && d < todayStr(); }
+function toRUB(a, c) { return c === 'RUB' ? a : a * (db.rates[c] || 1); }
+function addDays(d, n) { const x = new Date(d); x.setDate(x.getDate() + n); return x.toISOString().slice(0,10); }
+function statusLabel(id) { return (ORDER_STATUSES.find(s => s.id === id) || {}).label || id; }
+const MONTHS = ['Январь','Февраль','Март','Апрель','Май','Июнь','Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь'];
+const MONTHS_SHORT = ['янв','фев','мар','апр','мая','июн','июл','авг','сен','окт','ноя','дек'];
+const DOW = ['Пн','Вт','Ср','Чт','Пт','Сб','Вс'];
+const DOW_FULL = ['Понедельник','Вторник','Среда','Четверг','Пятница','Суббота','Воскресенье'];
+
+// понедельник = 0 ... воскресенье = 6
+function dowIndex(dateStr) {
+  const d = new Date(dateStr);
+  return (d.getDay() + 6) % 7;
+}
+
+// события на конкретный день: разовые + шаблонные (минус удалённые)
+function eventsForDate(dateStr) {
+  const oneOff = db.calendar.filter(e => e.date === dateStr).map(e => ({ ...e, tpl: false }));
+  const dow = dowIndex(dateStr);
+  const tpl = db.weekTemplate
+    .filter(e => e.dow === dow)
+    .filter(e => !db.skipped.some(s => s.tplId === e.id && s.date === dateStr))
+    .map(e => ({ ...e, tpl: true, date: dateStr }));
+  return [...tpl, ...oneOff].sort((a, b) => (a.from || '').localeCompare(b.from || ''));
+}
+
+function esc(s) {
+  return String(s || '').replace(/[&<>"']/g, c => ({
+    '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+  }[c]));
+}
+function fmtDate(d) {
+  if (!d) return '';
+  const dt = new Date(d);
+  const now = new Date();
+  if (d === todayStr()) return dt.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+  if (dt.getFullYear() === now.getFullYear()) {
+    return dt.getDate() + ' ' + MONTHS_SHORT[dt.getMonth()];
+  }
+  return dt.toLocaleDateString('ru-RU');
+}
+function fmtMonth(m) {
+  const [y, mo] = m.split('-');
+  return MONTHS[+mo - 1] + ' ' + y;
+}
+function plural(n, one, few, many) {
+  const m10 = n % 10, m100 = n % 100;
+  if (m10 === 1 && m100 !== 11) return one;
+  if (m10 >= 2 && m10 <= 4 && (m100 < 10 || m100 >= 20)) return few;
+  return many;
+}
+
+function render() {
+  const c = document.getElementById('content');
+  c.innerHTML = '';
+  const map = {
+    home: renderHome, clients: renderClients, services: renderServices,
+    calendar: renderCalendar, tasks: renderTasks, finance: renderFinance,
+    orders: renderOrders, pomodoro: renderPomodoro, notes: renderNotes
+  };
+  (map[currentTab] || renderHome)(c);
+}
+
+function renderHome(c) {
+  const today = todayStr();
+  const month = monthStr();
+  const todayEvents = eventsForDate(today);
+  const soonTasks = db.tasks.filter(t => !t.done && t.due && t.due <= addDays(today, 3)).sort((a,b)=>a.due.localeCompare(b.due));
+  const totalMoney = db.finance.accounts.reduce((s, a) => s + toRUB(a.amount, a.currency), 0);
+  const totalDebts = db.finance.debts.reduce((s, d) => s + d.amount, 0);
+  const incomeMonth = db.finance.transactions.filter(t => t.type === 'income' && t.date.startsWith(month)).reduce((s, t) => s + t.amount, 0);
+  const expenseMonth = db.finance.transactions.filter(t => t.type === 'expense' && t.date.startsWith(month)).reduce((s, t) => s + t.amount, 0);
+  const goal = db.finance.goal || { amount: 0, month: '' };
+  const goalAmount = goal.month === month ? goal.amount : 0;
+  const goalPct = goalAmount > 0 ? Math.min(100, Math.round(incomeMonth / goalAmount * 100)) : 0;
+  const pomoDone = db.pomodoro.todayDate === today ? db.pomodoro.doneToday : 0;
+
+  c.innerHTML = `
+    <h2>Главная панель</h2>
+    <div class="stat-grid">
+      <div class="stat-box accent"><div class="value">${fmtMoney(totalMoney)}</div><div class="label">Всего денег</div></div>
+      <div class="stat-box"><div class="value">${db.orders.length}</div><div class="label">Заказов всего</div></div>
+      <div class="stat-box"><div class="value">${soonTasks.length}</div><div class="label">Срочных дел</div></div>
+      <div class="stat-box"><div class="value">${fmtMoney(totalDebts)}</div><div class="label">Долги мне</div></div>
+    </div>
+
+    <h3>Финансы за месяц</h3>
+    <div class="stat-grid">
+      <div class="stat-box"><div class="value" style="color:var(--ok)">+${fmtMoney(incomeMonth)}</div><div class="label">Доход</div></div>
+      <div class="stat-box"><div class="value" style="color:var(--err)">−${fmtMoney(expenseMonth)}</div><div class="label">Расход</div></div>
+      <div class="stat-box"><div class="value">${fmtMoney(incomeMonth - expenseMonth)}</div><div class="label">Итог</div></div>
+      <div class="stat-box"><div class="value">${pomoDone}</div><div class="label">Помодоро сегодня</div></div>
+    </div>
+
+    ${goalAmount > 0 ? `
+      <h3>Цель на месяц</h3>
+      <div class="card">
+        <div class="card-row">
+          <div><strong>${fmtMoney(incomeMonth)}</strong> <span class="meta" style="display:inline">из ${fmtMoney(goalAmount)}</span></div>
+          <div class="price">${goalPct}%</div>
+        </div>
+        <div class="progress"><div style="width:${goalPct}%"></div></div>
+      </div>
+    ` : ''}
+
+    <h3>Расписание на сегодня</h3>
+    ${todayEvents.length ? `<div class="mini-list">${todayEvents.map(e => `
+      <div class="mini-item ${e.tpl ? 'tpl' : ''}">
+        <span>${esc(e.title)}</span>
+        <span class="t">${e.from} — ${e.to}${e.tpl ? ' · шаблон' : ''}</span>
+      </div>
+    `).join('')}</div>` : '<div class="empty">Событий нет</div>'}
+
+    <h3>Дела на подходе</h3>
+    ${soonTasks.length ? `<div class="mini-list">${soonTasks.map(t => `
+      <div class="mini-item ${isOverdue(t.due) ? 'overdue' : ''}">
+        <span>${esc(t.title)}</span>
+        <span class="t">${isOverdue(t.due) ? 'просрочено ' + t.due : 'до ' + t.due}</span>
+      </div>
+    `).join('')}</div>` : '<div class="empty">Нет срочных дел</div>'}
+
+    <h3>Последние заметки</h3>
+    ${db.notes.length ? `<div class="mini-list">${db.notes.slice(0, 3).map(n => `
+      <div class="mini-item" style="cursor:pointer" onclick="openNote(${n.id})">
+        <span>${esc(n.title || 'Без названия')}</span>
+        <span class="t">${fmtDate(n.updated || n.created)}</span>
+      </div>
+    `).join('')}</div>` : '<div class="empty">Заметок нет</div>'}
+
+    ${tokenBlock()}
+  `;
+  bindToken();
+}
+function tokenBlock() {
+  return `
+    <details class="token-block" ${localStorage.getItem('gh_token') ? '' : 'open'}>
+      <summary>GitHub-токен (нужен для сохранения)</summary>
+      <input type="password" id="tokenInput" placeholder="ghp_..." value="${localStorage.getItem('gh_token') || ''}">
+      <div class="hint">Хранится только в этом браузере. Не коммить в репо.</div>
+    </details>
+  `;
+}
+function bindToken() {
+  const inp = document.getElementById('tokenInput');
+  if (!inp) return;
+  inp.addEventListener('input', () => {
+    localStorage.setItem('gh_token', inp.value.trim());
+  });
+}
+
+function renderFinance(c) {
+  const totalRUB = db.finance.accounts.reduce((s, a) => s + toRUB(a.amount, a.currency), 0);
+  const month = monthStr();
+  const incomeMonth = db.finance.transactions.filter(t => t.type === 'income' && t.date.startsWith(month)).reduce((s, t) => s + t.amount, 0);
+  const expenseMonth = db.finance.transactions.filter(t => t.type === 'expense' && t.date.startsWith(month)).reduce((s, t) => s + t.amount, 0);
+  const goal = db.finance.goal || { amount: 0, month: '' };
+  const goalAmount = goal.month === month ? goal.amount : 0;
+  const goalPct = goalAmount > 0 ? Math.min(100, Math.round(incomeMonth / goalAmount * 100)) : 0;
+
+  const byMonth = {};
+  db.finance.transactions.forEach(t => {
+    const m = t.date.slice(0, 7);
+    if (!byMonth[m]) byMonth[m] = { income: 0, expense: 0, items: [] };
+    byMonth[m][t.type] += t.amount;
+    byMonth[m].items.push(t);
+  });
+  const months = Object.keys(byMonth).sort((a,b)=>b.localeCompare(a));
+
+  c.innerHTML = `
+    <h2>Финансы</h2>
+
+    <div class="fin-hero">
+      <div class="label">Общий баланс</div>
+      <div class="amount">${fmtMoney(totalRUB)}</div>
+      <div class="sub">${db.finance.accounts.length} ${plural(db.finance.accounts.length, 'счёт', 'счёта', 'счетов')} · ${db.finance.debts.length} ${plural(db.finance.debts.length, 'долг', 'долга', 'долгов')}</div>
+    </div>
+
+    <h3>Цель на месяц</h3>
+    <div class="card">
+      ${goalAmount > 0 ? `
+        <div class="card-row">
+          <div><strong>${fmtMoney(incomeMonth)}</strong> <span class="meta" style="display:inline">из ${fmtMoney(goalAmount)}</span></div>
+          <div class="price">${goalPct}%</div>
+        </div>
+        <div class="progress"><div style="width:${goalPct}%"></div></div>
+      ` : `<div class="meta" style="margin-bottom:0.6rem">Цель на этот месяц не задана</div>`}
+      <div style="margin-top:0.9rem">
+        <button class="ghost mini" onclick="modalGoal()">${goalAmount > 0 ? 'Изменить цель' : 'Задать цель'}</button>
+      </div>
+    </div>
+
+    <div class="page-head" style="margin-top:1.6rem">
+      <h3 style="margin:0">Счета</h3>
+      <button class="action" onclick="modalAccount()">Добавить счёт</button>
+    </div>
+    ${db.finance.accounts.length ? `
+      <div class="acc-grid">
+        ${db.finance.accounts.map(a => `
+          <div class="acc-card">
+            <button class="acc-del" title="Удалить" onclick="delAccount(${a.id})">×</button>
+            <div class="acc-name">${esc(a.name)}</div>
+            <div class="acc-amount">${fmtMoney(a.amount, a.currency)}</div>
+            ${a.currency !== 'RUB'
+              ? `<div class="acc-cur">≈ ${fmtMoney(toRUB(a.amount, a.currency))}</div>`
+              : `<div class="acc-cur">${a.currency}</div>`}
+            <div class="acc-actions">
+              <button class="plus" onclick="modalAccountOp(${a.id},'income')">Пополнить</button>
+              <button class="minus" onclick="modalAccountOp(${a.id},'expense')">Списать</button>
+            </div>
+          </div>
+        `).join('')}
+      </div>
+    ` : '<div class="empty">Счетов нет</div>'}
+
+    <h3>Операции за месяц</h3>
+    <div class="stat-grid">
+      <div class="stat-box"><div class="value" style="color:var(--ok)">+${fmtMoney(incomeMonth)}</div><div class="label">Доход</div></div>
+      <div class="stat-box"><div class="value" style="color:var(--err)">−${fmtMoney(expenseMonth)}</div><div class="label">Расход</div></div>
+      <div class="stat-box"><div class="value">${fmtMoney(incomeMonth - expenseMonth)}</div><div class="label">Итог</div></div>
+    </div>
+    <div class="page-head">
+      <h3 style="margin:0">Все операции</h3>
+      <button class="action" onclick="modalTransaction()">Добавить</button>
+    </div>
+    ${months.length ? months.map(m => `
+      <div class="month-block">
+        <div class="month-head">
+          <span>${fmtMonth(m)}</span>
+          <span class="nums">
+            <span class="plus">+${fmtMoney(byMonth[m].income)}</span>
+            &nbsp;·&nbsp;
+            <span class="minus">−${fmtMoney(byMonth[m].expense)}</span>
+          </span>
+        </div>
+        <div>
+          ${byMonth[m].items.slice().sort((a,b)=>b.date.localeCompare(a.date)).map(t => `
+            <div class="move-row">
+              <div class="desc">
+                <div class="note">${esc(t.note || t.category) || '—'}</div>
+                ${t.category && t.note ? `<div class="cat">${esc(t.category)}</div>` : ''}
+              </div>
+              <div class="date">${t.date.slice(5).replace('-', '.')}</div>
+              <div class="amt ${t.type==='income'?'plus':'minus'}">
+                ${t.type==='income'?'+':'−'}${fmtMoney(t.amount)}
+              </div>
+              <button class="ghost danger mini" onclick="delTransaction(${t.id})">×</button>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+    `).join('') : '<div class="empty">Операций нет</div>'}
+
+    <div class="page-head" style="margin-top:1.6rem">
+      <h3 style="margin:0">Долги мне</h3>
+      <button class="action" onclick="modalDebt()">Добавить</button>
+    </div>
+    ${db.finance.debts.length ? db.finance.debts.map(d => `
+      <div class="card ${isOverdue(d.due) ? 'overdue' : ''}">
+        <div class="card-row">
+          <div><strong>${esc(d.who)}</strong><div class="meta">К ${d.due}${isOverdue(d.due) ? ' · просрочено' : ''}</div></div>
+          <div style="text-align:right">
+            <div class="price">${fmtMoney(d.amount)}</div>
+            <button class="ghost danger mini" style="margin-top:0.4rem" onclick="delDebt(${d.id})">×</button>
+          </div>
+        </div>
+      </div>
+    `).join('') : '<div class="empty">Долгов нет</div>'}
+  `;
+}
+
+function modalAccount() {
+  openModal('Новый счёт', `
+    <div class="form-row">
+      <div><span class="field-label">Название счёта</span><input id="acc-name" placeholder="Сбер, Наличные, Тинькофф..."></div>
+      <div><span class="field-label">Сумма</span><input id="acc-amount" type="number" placeholder="0"></div>
+      <div><span class="field-label">Валюта</span>
+        <select id="acc-cur">
+          <option value="RUB">₽ Рубли</option>
+          <option value="USD">$ Доллары</option>
+          <option value="EUR">€ Евро</option>
+          <option value="CNY">¥ Юани</option>
+        </select>
+      </div>
+    </div>
+  `, () => {
+    const name = document.getElementById('acc-name').value.trim();
+    if (!name) { alert('Введи название'); return false; }
+    db.finance.accounts.push({
+      id: uid(), name,
+      amount: +document.getElementById('acc-amount').value || 0,
+      currency: document.getElementById('acc-cur').value
+    });
+    markDirty(); render();
+  });
+}
+function delAccount(id) {
+  if (!confirm('Удалить счёт? Операции по нему останутся в истории.')) return;
+  db.finance.accounts = db.finance.accounts.filter(x => x.id !== id);
+  markDirty(); render();
+}
+function modalAccountOp(accId, type) {
+  const acc = db.finance.accounts.find(a => a.id === accId);
+  if (!acc) return;
+  const isIncome = type === 'income';
+  openModal(isIncome ? 'Пополнить счёт' : 'Списать со счёта', `
+    <div class="form-row">
+      <div><span class="field-label">Счёт</span><input value="${esc(acc.name)} (${fmtMoney(acc.amount, acc.currency)})" disabled style="background:#f7f8fa"></div>
+      <div><span class="field-label">Сумма</span><input id="op-amount" type="number" placeholder="0" autofocus></div>
+      <div><span class="field-label">Категория</span><input id="op-cat" placeholder="${isIncome ? 'Зарплата, заказ, перевод...' : 'Еда, реклама, налоги...'}"></div>
+      <div><span class="field-label">Заметка</span><input id="op-note" placeholder="Необязательно"></div>
+      <div><span class="field-label">Дата</span><input id="op-date" type="date" value="${todayStr()}"></div>
+    </div>
+  `, () => {
+    const amount = +document.getElementById('op-amount').value;
+    if (!amount || amount <= 0) { alert('Введи положительную сумму'); return false; }
+    if (isIncome) acc.amount += amount;
+    else acc.amount -= amount;
+    db.finance.transactions.push({
+      id: uid(),
+      date: document.getElementById('op-date').value || todayStr(),
+      type,
+      amount,
+      category: document.getElementById('op-cat').value.trim() || (isIncome ? 'Пополнение' : 'Списание'),
+      note: document.getElementById('op-note').value.trim() || (isIncome ? 'Пополнение' : 'Списание'),
+      accountId: acc.id
+    });
+    markDirty(); render();
+  });
+}
+function modalDebt() {
+  openModal('Новый долг', `
+    <div class="form-row">
+      <div><span class="field-label">Кто</span><input id="debt-who"></div>
+      <div><span class="field-label">Сумма</span><input id="debt-amount" type="number"></div>
+      <div><span class="field-label">К какой дате вернёт</span><input id="debt-due" type="date"></div>
+    </div>
+  `, () => {
+    const who = document.getElementById('debt-who').value.trim();
+    if (!who) { alert('Введи имя'); return false; }
+    db.finance.debts.push({
+      id: uid(), who,
+      amount: +document.getElementById('debt-amount').value || 0,
+      due: document.getElementById('debt-due').value
+    });
+    markDirty(); render();
+  });
+}
+function delDebt(id) {
+  db.finance.debts = db.finance.debts.filter(x => x.id !== id);
+  markDirty(); render();
+}
+function modalTransaction() {
+  openModal('Новая операция', `
+    <div class="form-row">
+      <div><span class="field-label">Дата</span><input id="tx-date" type="date" value="${todayStr()}"></div>
+      <div><span class="field-label">Тип</span>
+        <select id="tx-type">
+          <option value="income">Доход</option>
+          <option value="expense">Расход</option>
+        </select>
+      </div>
+      <div><span class="field-label">Сумма</span><input id="tx-amount" type="number"></div>
+      <div><span class="field-label">Категория</span><input id="tx-cat" placeholder="Заказ, реклама, налоги..."></div>
+      <div><span class="field-label">Заметка</span><input id="tx-note"></div>
+    </div>
+  `, () => {
+    const amount = +document.getElementById('tx-amount').value;
+    if (!amount) { alert('Введи сумму'); return false; }
+    db.finance.transactions.push({
+      id: uid(),
+      date: document.getElementById('tx-date').value || todayStr(),
+      type: document.getElementById('tx-type').value,
+      amount,
+      category: document.getElementById('tx-cat').value.trim(),
+      note: document.getElementById('tx-note').value.trim()
+    });
+    markDirty(); render();
+  });
+}
+function delTransaction(id) {
+  db.finance.transactions = db.finance.transactions.filter(x => x.id !== id);
+  markDirty(); render();
+}
+function modalGoal() {
+  const month = monthStr();
+  const cur = db.finance.goal || { amount: 0, month };
+  openModal('Цель на месяц', `
+    <div class="form-row">
+      <div><span class="field-label">Месяц</span><input id="goal-month" type="month" value="${cur.month || month}"></div>
+      <div><span class="field-label">Сумма дохода</span><input id="goal-amount" type="number" value="${cur.amount || ''}"></div>
+    </div>
+  `, () => {
+    db.finance.goal = {
+      amount: +document.getElementById('goal-amount').value || 0,
+      month: document.getElementById('goal-month').value || monthStr()
+    };
+    markDirty(); render();
+  });
+}
+
+let activeNoteId = null;
+function renderNotes(c) {
+  const notes = [...db.notes].sort((a, b) =>
+    (b.updated || b.created || '').localeCompare(a.updated || a.created || '')
+  );
+  if (!activeNoteId && notes.length) activeNoteId = notes[0].id;
+  const active = db.notes.find(n => n.id === activeNoteId);
+
+  c.innerHTML = `
+    <h2>Заметки</h2>
+    <div class="notes-layout">
+      <div class="notes-list">
+        <div class="notes-list-head">
+          <strong>Все заметки</strong>
+          <button class="action" onclick="newNote()">Новая</button>
+        </div>
+        <div class="notes-list-items">
+          ${notes.length ? notes.map(n => `
+            <div class="note-item ${n.id === activeNoteId ? 'active' : ''}" onclick="openNote(${n.id})">
+              <div class="nt">${esc(n.title || 'Без названия')}</div>
+              <div class="np">${esc((n.body || '').slice(0, 60)) || 'Пусто'}</div>
+              <div class="nd">${fmtDate(n.updated || n.created)}</div>
+            </div>
+          `).join('') : '<div class="empty" style="margin:1rem">Заметок нет</div>'}
+        </div>
+      </div>
+      <div class="note-editor" id="noteEditor">
+        ${active ? `
+          <input class="note-title" id="noteTitle" value="${esc(active.title)}" placeholder="Заголовок">
+          <textarea class="note-body" id="noteBody" placeholder="Текст заметки...">${esc(active.body)}</textarea>
+          <div class="note-foot">
+            <span>Изменено: ${fmtDate(active.updated || active.created)}</span>
+            <button class="ghost danger" onclick="deleteNote(${active.id})">Удалить</button>
+          </div>
+        ` : `
+          <div class="placeholder">Выбери заметку слева или создай новую</div>
+        `}
+      </div>
+    </div>
+  `;
+
+  if (active) {
+    const t = document.getElementById('noteTitle');
+    const b = document.getElementById('noteBody');
+    const update = () => {
+      active.title = t.value;
+      active.body = b.value;
+      active.updated = new Date().toISOString();
+      markDirty();
+      const items = c.querySelector('.notes-list-items');
+      if (items) {
+        const sorted = [...db.notes].sort((a, b2) =>
+          (b2.updated || b2.created || '').localeCompare(a.updated || a.created || '')
+        );
+        items.innerHTML = sorted.map(n => `
+          <div class="note-item ${n.id === activeNoteId ? 'active' : ''}" onclick="openNote(${n.id})">
+            <div class="nt">${esc(n.title || 'Без названия')}</div>
+            <div class="np">${esc((n.body || '').slice(0, 60)) || 'Пусто'}</div>
+            <div class="nd">${fmtDate(n.updated || n.created)}</div>
+          </div>
+        `).join('');
+      }
+    };
+    t.addEventListener('input', update);
+    b.addEventListener('input', update);
+  }
+}
+function newNote() {
+  const n = {
+    id: uid(), title: '', body: '',
+    created: new Date().toISOString(),
+    updated: new Date().toISOString()
+  };
+  db.notes.push(n);
+  activeNoteId = n.id;
+  markDirty();
+  render();
+  setTimeout(() => { const t = document.getElementById('noteTitle'); if (t) t.focus(); }, 50);
+}
+function openNote(id) { activeNoteId = id; render(); }
+function deleteNote(id) {
+  if (!confirm('Удалить заметку?')) return;
+  db.notes = db.notes.filter(n => n.id !== id);
+  if (activeNoteId === id) activeNoteId = db.notes[0]?.id || null;
+  markDirty(); render();
+}
+
+function renderClients(c) {
+  c.innerHTML = `
+    <div class="page-head">
+      <h2>Клиенты</h2>
+      <button class="action" onclick="modalClient()">Добавить</button>
+    </div>
+    ${db.clients.length ? db.clients.map(cl => {
+      const srv = db.services.find(s => s.id === cl.serviceId);
+      const histCount = (cl.history || []).length;
+      return `<div class="card">
+        <div class="card-row">
+          <div>
+            <strong>${esc(cl.firstName)} ${esc(cl.lastName)}</strong>
+            <div class="meta">${esc(cl.site) || '—'} · ${srv ? esc(srv.name) : 'без услуги'}</div>
+            ${histCount ? `<div class="meta">Записей в истории: ${histCount}</div>` : ''}
+          </div>
+          <div class="price">${fmtMoney(cl.price)}</div>
+        </div>
+        <div style="margin-top:0.7rem;display:flex;gap:0.4rem;flex-wrap:wrap">
+          <button class="ghost mini" onclick="modalHistory(${cl.id})">История</button>
+          <button class="ghost danger mini" onclick="delClient(${cl.id})">Удалить</button>
+        </div>
+      </div>`;
+    }).join('') : '<div class="empty">Клиентов нет</div>'}
+  `;
+}
+function modalClient() {
+  openModal('Новый клиент', `
+    <div class="form-row">
+      <div><span class="field-label">Имя</span><input id="cl-fn"></div>
+      <div><span class="field-label">Фамилия</span><input id="cl-ln"></div>
+      <div><span class="field-label">Ссылка на сайт</span><input id="cl-site"></div>
+      <div><span class="field-label">Стоимость</span><input id="cl-price" type="number"></div>
+      <div><span class="field-label">Услуга</span>
+        <select id="cl-srv">
+          <option value="">Без услуги</option>
+          ${db.services.map(s => `<option value="${s.id}">${esc(s.name)}</option>`).join('')}
+        </select>
+      </div>
+    </div>
+  `, () => {
+    const fn = document.getElementById('cl-fn').value.trim();
+    if (!fn) { alert('Введи имя'); return false; }
+    db.clients.push({
+      id: uid(), firstName: fn,
+      lastName: document.getElementById('cl-ln').value.trim(),
+      site: document.getElementById('cl-site').value.trim(),
+      price: +document.getElementById('cl-price').value || 0,
+      serviceId: +document.getElementById('cl-srv').value || null,
+      history: []
+    });
+    markDirty(); render();
+  });
+}
+function delClient(id) {
+  if (!confirm('Удалить клиента?')) return;
+  db.clients = db.clients.filter(x => x.id !== id);
+  markDirty(); render();
+}
+function modalHistory(clientId) {
+  const cl = db.clients.find(x => x.id === clientId);
+  if (!cl) return;
+  cl.history = cl.history || [];
+  const renderList = () => cl.history.length
+    ? `<div class="mini-list" style="margin-bottom:1rem">${cl.history
+        .slice().sort((a,b)=>b.date.localeCompare(a.date))
+        .map(h => `
+          <div class="mini-item">
+            <span>${esc(h.text)}</span>
+            <span style="display:flex;gap:0.5rem;align-items:center">
+              <span class="t">${h.date}</span>
+              <button class="ghost danger mini" onclick="delHistory(${cl.id},${h.id})">×</button>
+            </span>
+          </div>
+        `).join('')}</div>`
+    : '<div class="empty" style="margin-bottom:1rem">Записей нет</div>';
+  openModal(`История: ${esc(cl.firstName)} ${esc(cl.lastName)}`, `
+    <div id="histList">${renderList()}</div>
+    <div class="form-row" style="border-top:1px solid var(--border);padding-top:1rem">
+      <div><span class="field-label">Дата</span><input id="hist-date" type="date" value="${todayStr()}"></div>
+      <div><span class="field-label">Запись</span><input id="hist-text" placeholder="Что произошло"></div>
+    </div>
+  `, () => {
+    const text = document.getElementById('hist-text').value.trim();
+    if (!text) { alert('Введи текст'); return false; }
+    cl.history.push({
+      id: uid(),
+      date: document.getElementById('hist-date').value || todayStr(),
+      text
+    });
+    markDirty();
+    document.getElementById('histList').innerHTML = renderList();
+    document.getElementById('hist-text').value = '';
+    return false;
+  });
+}
+function delHistory(clientId, entryId) {
+  const cl = db.clients.find(x => x.id === clientId);
+  if (!cl) return;
+  cl.history = cl.history.filter(h => h.id !== entryId);
+  markDirty(); modalHistory(clientId);
+}
+
+function renderServices(c) {
+  c.innerHTML = `
+    <div class="page-head">
+      <h2>Услуги</h2>
+      <button class="action" onclick="modalService()">Добавить</button>
+    </div>
+    ${db.services.length ? db.services.map(s => `
+      <div class="card">
+        <div class="card-row">
+          <div><strong>${esc(s.name)}</strong><div class="meta">${esc(s.description) || '—'}</div></div>
+          <div class="price">от ${fmtMoney(s.minPrice)}</div>
+        </div>
+        <div style="margin-top:0.7rem">
+          <button class="ghost danger mini" onclick="delService(${s.id})">Удалить</button>
+        </div>
+      </div>
+    `).join('') : '<div class="empty">Услуг нет</div>'}
+  `;
+}
+function modalService() {
+  openModal('Новая услуга', `
+    <div class="form-row">
+      <div><span class="field-label">Название</span><input id="srv-name"></div>
+      <div><span class="field-label">Описание</span><input id="srv-desc"></div>
+      <div><span class="field-label">Мин. стоимость</span><input id="srv-price" type="number"></div>
+    </div>
+  `, () => {
+    const name = document.getElementById('srv-name').value.trim();
+    if (!name) { alert('Введи название'); return false; }
+    db.services.push({
+      id: uid(), name,
+      description: document.getElementById('srv-desc').value.trim(),
+      minPrice: +document.getElementById('srv-price').value || 0
+    });
+    markDirty(); render();
+  });
+}
+function delService(id) {
+  if (!confirm('Удалить услугу?')) return;
+  db.services = db.services.filter(x => x.id !== id);
+  markDirty(); render();
+}
+
+/* ================== КАЛЕНДАРЬ + ШАБЛОН НЕДЕЛИ ================== */
+let calYear, calMonth, calSelected;
+let showingTemplate = false;  // режим просмотра шаблона
+(function initCal() {
+  const n = new Date();
+  calYear = n.getFullYear(); calMonth = n.getMonth(); calSelected = todayStr();
+})();
+
+function renderCalendar(c) {
+  if (showingTemplate) return renderWeekTemplate(c);
+
+  const first = new Date(calYear, calMonth, 1);
+  const startDow = (first.getDay() + 6) % 7;
+  const daysInMonth = new Date(calYear, calMonth + 1, 0).getDate();
+  const prevMonthDays = new Date(calYear, calMonth, 0).getDate();
+  const today = todayStr();
+
+  let cells = '';
+  for (let i = startDow - 1; i >= 0; i--) {
+    cells += `<div class="cal-cell other"><span class="day-num">${prevMonthDays - i}</span></div>`;
+  }
+  for (let d = 1; d <= daysInMonth; d++) {
+    const dateStr = `${calYear}-${String(calMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const events = eventsForDate(dateStr);
+    const cls = ['cal-cell',
+      dateStr === today ? 'today' : '',
+      dateStr === calSelected ? 'selected' : ''].join(' ');
+    cells += `<div class="${cls}" onclick="selectDay('${dateStr}')">
+      <span class="day-num">${d}</span>
+      ${events.slice(0, 3).map(e => `<div class="ev ${e.tpl ? 'tpl' : ''}">${e.from} ${esc(e.title)}</div>`).join('')}
+      ${events.length > 3 ? `<div class="ev">+${events.length - 3}</div>` : ''}
+    </div>`;
+  }
+  const totalCells = startDow + daysInMonth;
+  const tail = (7 - (totalCells % 7)) % 7;
+  for (let i = 1; i <= tail; i++) {
+    cells += `<div class="cal-cell other"><span class="day-num">${i}</span></div>`;
+  }
+  const selectedEvents = eventsForDate(calSelected);
+
+  c.innerHTML = `
+    <div class="page-head">
+      <h2>Календарь</h2>
+      <button class="action" onclick="showingTemplate=true; render()">Шаблон недели</button>
+    </div>
+    <div class="cal-header">
+      <div class="cal-title">${MONTHS[calMonth]} ${calYear}</div>
+      <div class="cal-nav">
+        <button onclick="calPrev()">‹</button>
+        <button onclick="calToday()">·</button>
+        <button onclick="calNext()">›</button>
+      </div>
+    </div>
+    <div class="cal-grid">
+      ${DOW.map(d => `<div class="cal-dow">${d}</div>`).join('')}
+      ${cells}
+    </div>
+
+    <div class="cal-day-panel">
+      <h3>${calSelected}</h3>
+      <div class="form-row">
+        <input id="cal-from" type="time" value="10:00">
+        <input id="cal-to" type="time" value="11:00">
+        <input id="cal-title" placeholder="Название события">
+        <button class="action" onclick="addEvent()">Добавить</button>
+      </div>
+      ${selectedEvents.length ? selectedEvents.map(e => `
+        <div class="mini-item ${e.tpl ? 'tpl' : ''}">
+          <span>${esc(e.title)}${e.tpl ? ' <span class="meta" style="display:inline;color:var(--info)">· шаблон</span>' : ''}</span>
+          <span style="display:flex;gap:0.5rem;align-items:center">
+            <span class="t">${e.from} — ${e.to}</span>
+            ${e.tpl
+              ? `<button class="ghost danger mini" title="Удалить только на этот день" onclick="skipTpl(${e.id},'${calSelected}')">×</button>`
+              : `<button class="ghost danger mini" onclick="delEvent(${e.id})">×</button>`}
+          </span>
+        </div>
+      `).join('') : '<div class="empty">Событий нет</div>'}
+    </div>
+  `;
+}
+
+function selectDay(d) { calSelected = d; render(); }
+function calPrev() { calMonth--; if (calMonth < 0) { calMonth = 11; calYear--; } render(); }
+function calNext() { calMonth++; if (calMonth > 11) { calMonth = 0; calYear++; } render(); }
+function calToday() {
+  const n = new Date();
+  calYear = n.getFullYear(); calMonth = n.getMonth(); calSelected = todayStr();
+  render();
+}
+function addEvent() {
+  const title = document.getElementById('cal-title').value.trim();
+  if (!title) return alert('Введи название');
+  db.calendar.push({
+    id: uid(), date: calSelected,
+    from: document.getElementById('cal-from').value,
+    to: document.getElementById('cal-to').value,
+    title
+  });
+  markDirty(); render();
+}
+function delEvent(id) {
+  db.calendar = db.calendar.filter(x => x.id !== id);
+  markDirty(); render();
+}
+function skipTpl(tplId, date) {
+  if (!confirm('Удалить только на этот день? В шаблоне останется.')) return;
+  db.skipped.push({ tplId, date });
+  markDirty(); render();
+}
+
+/* -------- ШАБЛОН НЕДЕЛИ -------- */
+function renderWeekTemplate(c) {
+  const byDow = DOW_FULL.map((_, i) => db.weekTemplate
+    .filter(e => e.dow === i)
+    .sort((a, b) => a.from.localeCompare(b.from))
+  );
+
+  c.innerHTML = `
+    <div class="page-head">
+      <h2>Шаблон недели</h2>
+      <button class="ghost" onclick="showingTemplate=false; render()">← К календарю</button>
+    </div>
+    <p class="meta" style="margin-bottom:1.2rem;color:var(--muted)">
+      Эти события будут повторяться каждую неделю. Чтобы убрать событие в конкретный день — открой календарь и удали там.
+    </p>
+
+    ${DOW_FULL.map((dayName, i) => `
+      <div class="tpl-day">
+        <div class="tpl-day-head">
+          <span>${dayName}</span>
+          <span class="count">${byDow[i].length ? byDow[i].length + ' ' + plural(byDow[i].length, 'событие','события','событий') : 'пусто'}</span>
+        </div>
+        <div class="tpl-day-body">
+          ${byDow[i].map(e => `
+            <div class="tpl-row">
+              <span class="time">${e.from} — ${e.to}</span>
+              <span class="title">${esc(e.title)}</span>
+              <button class="ghost danger mini" onclick="delTpl(${e.id})">×</button>
+            </div>
+          `).join('')}
+          <button class="tpl-add" onclick="modalTplAdd(${i})">+ Добавить событие</button>
+        </div>
+      </div>
+    `).join('')}
+  `;
+}
+
+function modalTplAdd(dow) {
+  openModal('Новое событие шаблона', `
+    <div class="form-row">
+      <div><span class="field-label">День недели</span><input value="${DOW_FULL[dow]}" disabled style="background:#f7f8fa"></div>
+      <div><span class="field-label">Время начала</span><input id="tpl-from" type="time" value="10:00"></div>
+      <div><span class="field-label">Время конца</span><input id="tpl-to" type="time" value="11:00"></div>
+      <div><span class="field-label">Название</span><input id="tpl-title" placeholder="Созвон, планёрка..."></div>
+    </div>
+  `, () => {
+    const title = document.getElementById('tpl-title').value.trim();
+    if (!title) { alert('Введи название'); return false; }
+    db.weekTemplate.push({
+      id: uid(), dow,
+      from: document.getElementById('tpl-from').value,
+      to: document.getElementById('tpl-to').value,
+      title
+    });
+    markDirty(); render();
+  });
+}
+function delTpl(id) {
+  if (!confirm('Удалить событие из шаблона? Оно больше не будет повторяться.')) return;
+  db.weekTemplate = db.weekTemplate.filter(x => x.id !== id);
+  db.skipped = db.skipped.filter(s => s.tplId !== id);
+  markDirty(); render();
+}
+
+function renderTasks(c) {
+  const sorted = [...db.tasks].sort((a, b) => (a.due || '9999').localeCompare(b.due || '9999'));
+  c.innerHTML = `
+    <div class="page-head">
+      <h2>Дела</h2>
+      <button class="action" onclick="modalTask()">Добавить</button>
+    </div>
+    ${sorted.length ? sorted.map(t => `
+      <div class="card ${!t.done && isOverdue(t.due) ? 'overdue' : ''} ${t.done ? 'done' : ''}">
+        <div class="card-row">
+          <div>
+            <strong>${esc(t.title)}</strong>
+            <div class="meta">
+              ${t.due ? 'До ' + t.due : 'Без срока'}
+              ${!t.done && isOverdue(t.due) ? ' · просрочено' : ''}
+            </div>
+          </div>
+          <div style="display:flex;gap:0.3rem">
+            <button class="ghost mini" onclick="toggleTask(${t.id})">${t.done ? 'Вернуть' : 'Готово'}</button>
+            <button class="ghost danger mini" onclick="delTask(${t.id})">×</button>
+          </div>
+        </div>
+      </div>
+    `).join('') : '<div class="empty">Дел нет</div>'}
+  `;
+}
+function modalTask() {
+  openModal('Новое дело', `
+    <div class="form-row">
+      <div><span class="field-label">Что сделать</span><input id="task-title"></div>
+      <div><span class="field-label">Срок до</span><input id="task-due" type="date"></div>
+    </div>
+  `, () => {
+    const title = document.getElementById('task-title').value.trim();
+    if (!title) { alert('Введи дело'); return false; }
+    db.tasks.push({ id: uid(), title, due: document.getElementById('task-due').value, done: false });
+    markDirty(); render();
+  });
+}
+function toggleTask(id) {
+  const t = db.tasks.find(x => x.id === id);
+  if (t) { t.done = !t.done; markDirty(); render(); }
+}
+function delTask(id) {
+  db.tasks = db.tasks.filter(x => x.id !== id);
+  markDirty(); render();
+}
+
+function renderOrders(c) {
+  c.innerHTML = `
+    <div class="page-head">
+      <h2>Заказы</h2>
+      <button class="action" onclick="modalOrder()">Добавить</button>
+    </div>
+    ${db.orders.length ? db.orders.map(o => {
+      const cl = db.clients.find(x => x.id === o.clientId);
+      return `<div class="card">
+        <div class="card-row">
+          <div>
+            <strong>${esc(o.title)}</strong>
+            <div class="meta">${cl ? esc(cl.firstName) + ' ' + esc(cl.lastName) : '—'}</div>
+            ${o.tz ? `<div class="meta" style="margin-top:0.3rem">ТЗ: ${esc(o.tz)}</div>` : ''}
+          </div>
+          <div style="text-align:right">
+            <div class="price">${fmtMoney(o.price)}</div>
+            <button class="ghost danger mini" style="margin-top:0.4rem" onclick="delOrder(${o.id})">×</button>
+          </div>
+        </div>
+        <div style="margin-top:0.7rem">
+          <select onchange="setOrderStatus(${o.id}, this.value)" style="padding:0.4rem 0.6rem;border:1px solid var(--border);border-radius:6px;font-size:0.82rem;background:#fff;font-family:inherit">
+            ${ORDER_STATUSES.map(s => `<option value="${s.id}" ${s.id===o.status?'selected':''}>${s.label}</option>`).join('')}
+          </select>
+        </div>
+      </div>`;
+    }).join('') : '<div class="empty">Заказов нет</div>'}
+  `;
+}
+function setOrderStatus(id, status) {
+  const o = db.orders.find(x => x.id === id);
+  if (o) { o.status = status; markDirty(); }
+}
+function modalOrder() {
+  openModal('Новый заказ', `
+    <div class="form-row">
+      <div><span class="field-label">Клиент</span>
+        <select id="ord-client">
+          <option value="">Без клиента</option>
+          ${db.clients.map(cl => `<option value="${cl.id}">${esc(cl.firstName)} ${esc(cl.lastName)}</option>`).join('')}
+        </select>
+      </div>
+      <div><span class="field-label">Название</span><input id="ord-title"></div>
+      <div><span class="field-label">Стоимость</span><input id="ord-price" type="number"></div>
+      <div><span class="field-label">Статус</span>
+        <select id="ord-status">
+          ${ORDER_STATUSES.map(s => `<option value="${s.id}">${s.label}</option>`).join('')}
+        </select>
+      </div>
+      <div><span class="field-label">ТЗ</span><textarea id="ord-tz" style="width:100%;min-height:80px"></textarea></div>
+    </div>
+  `, () => {
+    const title = document.getElementById('ord-title').value.trim();
+    if (!title) { alert('Введи название'); return false; }
+    db.orders.push({
+      id: uid(),
+      clientId: +document.getElementById('ord-client').value || null,
+      title,
+      tz: document.getElementById('ord-tz').value.trim(),
+      price: +document.getElementById('ord-price').value || 0,
+      status: document.getElementById('ord-status').value
+    });
+    markDirty(); render();
+  });
+}
+function delOrder(id) {
+  db.orders = db.orders.filter(x => x.id !== id);
+  markDirty(); render();
+}
+
+const POMO_WORK = 25 * 60;
+const POMO_BREAK = 5 * 60;
+let pomoState = {
+  mode: 'work', remaining: POMO_WORK,
+  running: false, endAt: null, intervalId: null
+};
+
+function renderPomodoro(c) {
+  const today = todayStr();
+  if (db.pomodoro.todayDate !== today) {
+    db.pomodoro.todayDate = today;
+    db.pomodoro.doneToday = 0;
+    markDirty();
+  }
+  const done = db.pomodoro.doneToday;
+  c.innerHTML = `
+    <h2>Помодоро-таймер</h2>
+    <div class="pomo-box">
+      <div class="pomo-time" id="pomoTime">${fmtTime(pomoState.remaining)}</div>
+      <div class="pomo-mode" id="pomoMode">${pomoState.mode === 'work' ? 'Работа' : 'Перерыв'}</div>
+      <div class="pomo-actions">
+        <button class="primary" onclick="pomoToggle()">${pomoState.running ? 'Пауза' : 'Старт'}</button>
+        <button onclick="pomoReset()">Сброс</button>
+        <button onclick="pomoSkip()">Пропустить</button>
+      </div>
+      <div class="pomo-stat">
+        <div><div class="v">${done}</div><div class="l">Сегодня</div></div>
+      </div>
+    </div>
+    <div class="meta" style="text-align:center;color:var(--muted)">
+      25 минут работы → 5 минут перерыв. Автоматически.
+    </div>
+  `;
+}
+function fmtTime(sec) {
+  const m = Math.floor(sec / 60);
+  const s = sec % 60;
+  return String(m).padStart(2, '0') + ':' + String(s).padStart(2, '0');
+}
+function pomoTick() {
+  if (!pomoState.running) return;
+  pomoState.remaining = Math.max(0, Math.round((pomoState.endAt - Date.now()) / 1000));
+  const el = document.getElementById('pomoTime');
+  if (el) el.textContent = fmtTime(pomoState.remaining);
+  if (pomoState.remaining <= 0) finishPhase();
+}
+function finishPhase() {
+  pomoState.running = false;
+  clearInterval(pomoState.intervalId);
+  pomoState.intervalId = null;
+  beep();
+  if (pomoState.mode === 'work') {
+    const today = todayStr();
+    if (db.pomodoro.todayDate !== today) {
+      db.pomodoro.todayDate = today;
+      db.pomodoro.doneToday = 0;
+    }
+    db.pomodoro.doneToday++;
+    markDirty();
+    pomoState.mode = 'break';
+    pomoState.remaining = POMO_BREAK;
+    pomoState.running = true;
+    pomoState.endAt = Date.now() + POMO_BREAK * 1000;
+    pomoState.intervalId = setInterval(pomoTick, 500);
+  } else {
+    pomoState.mode = 'work';
+    pomoState.remaining = POMO_WORK;
+  }
+  if (currentTab === 'pomodoro') render();
+}
+function pomoToggle() {
+  if (pomoState.running) {
+    pomoState.running = false;
+    clearInterval(pomoState.intervalId);
+    pomoState.intervalId = null;
+  } else {
+    pomoState.endAt = Date.now() + pomoState.remaining * 1000;
+    pomoState.running = true;
+    pomoState.intervalId = setInterval(pomoTick, 500);
+  }
+  if (currentTab === 'pomodoro') render();
+}
+function pomoReset() {
+  pomoState.running = false;
+  clearInterval(pomoState.intervalId);
+  pomoState.intervalId = null;
+  pomoState.mode = 'work';
+  pomoState.remaining = POMO_WORK;
+  if (currentTab === 'pomodoro') render();
+}
+function pomoSkip() {
+  pomoState.running = false;
+  clearInterval(pomoState.intervalId);
+  pomoState.intervalId = null;
+  if (pomoState.mode === 'work') {
+    pomoState.mode = 'break';
+    pomoState.remaining = POMO_BREAK;
+  } else {
+    pomoState.mode = 'work';
+    pomoState.remaining = POMO_WORK;
+  }
+  if (currentTab === 'pomodoro') render();
+}
+function beep() {
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain); gain.connect(ctx.destination);
+    osc.frequency.value = 880;
+    osc.type = 'sine';
+    gain.gain.setValueAtTime(0.2, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.8);
+    osc.start(); osc.stop(ctx.currentTime + 0.8);
+  } catch {}
+}
+
+window.addEventListener('beforeunload', e => {
+  if (dirty && saveInFlight) { e.preventDefault(); e.returnValue = ''; }
+});
+
+renderNav();
+render();
+loadFromGitHub();
+</script>
 </body>
 </html>
